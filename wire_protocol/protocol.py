@@ -26,6 +26,7 @@ class OperationCode(Enum):
     LOG_IN_RESPONSE = 10
     LOG_OFF = 11
     LOG_OFF_RESPONSE = 12
+    RECV_MESSAGE = 13
 
 
 OPERATION_ARGS = {
@@ -41,6 +42,7 @@ OPERATION_ARGS = {
     'LOG_IN_RESPONSE': ['status'],
     'LOG_OFF': [],
     'LOG_OFF_RESPONSE': ['status'],
+    'RECV_MESSAGE': ['sender', 'message']
 }
 
 
@@ -62,7 +64,7 @@ class Metadata:
                  message_size: bytes, payload_size: bytes, message_id: bytes) -> None:
         self.version = int.from_bytes(version, 'big')
         self.header_length = int.from_bytes(header_length, 'big')
-        self.operation_code = int.from_bytes(operation_code, 'big')
+        self.operation_code = OperationCode(int.from_bytes(operation_code, 'big'))
         self.message_size = int.from_bytes(message_size, 'big')
         self.payload_size = int.from_bytes(payload_size, 'big')
         self.message_id = int.from_bytes(message_id, 'big')
@@ -141,3 +143,4 @@ class Protocol:
         # bytes is the result of client recv
         # idx is the byte index into the metadata we are currently readin
         return Metadata(bytes[0:1], bytes[1:2], bytes[2:3], bytes[3:6], bytes[6:8], bytes[8:10])
+protocol_instance = Protocol(1, METADATA_SIZES)
