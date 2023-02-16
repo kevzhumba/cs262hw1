@@ -10,7 +10,9 @@ METADATA_SIZES = {
     "message_id": 2,
 }
 
+METADATA_LENGTH = sum(METADATA_SIZES.values())
 MAX_PAYLOAD_SIZE = 2048
+VERSION = 1
 
 
 class OperationCode(Enum):
@@ -57,8 +59,7 @@ class Message:
 
     def get_version(self) -> int:
         return self.version
-
-
+    
 class Metadata:
     def __init__(self, version: bytes, header_length: bytes, operation_code: bytes,
                  message_size: bytes, payload_size: bytes, message_id: bytes) -> None:
@@ -136,11 +137,74 @@ class Protocol:
         # Read pa
         pass
 
-    def parse_metadata(bytes) -> Metadata:
+    def parse_data(self, op: int, data: str) -> dict[str, str]:           
+        kv_pairs = data.split(self.separator, OPERATION_ARGS[OperationCode(op).name])
+        dict(map(lambda x: tuple(x.split("=")), kv_pairs))
+        
+
+    def parse_metadata(self, bytes) -> Metadata:
         '''
             Takes in a bytes object and parses the metadata. 
         '''
         # bytes is the result of client recv
         # idx is the byte index into the metadata we are currently readin
         return Metadata(bytes[0:1], bytes[1:2], bytes[2:3], bytes[3:6], bytes[6:8], bytes[8:10])
-protocol_instance = Protocol(1, METADATA_SIZES)
+    
+    def read_packets(self, client, processFn):
+        # Handle ending/disconnecting later
+        curr_msg_id = -1
+        curr_op = -1
+        msg_id_accum = 0
+        # represents the bytes from the last recieve that occurred after packet termination; invariant has to be that left_over_packet ALWAYS starts with a header.
+        left_over_packet = bytes()
+        running_msg = ""
+        while True:
+            #chekc user input
+            #if user input exists then send 
+            msg = client.recv(2048)
+            if (msg == 0):
+                # client disconnected   
+                break
+            curr_msg_to_parse = left_over_packet + msg
+            if (len(curr_msg_to_parse) < METADATA_LENGTH):
+                left_over_packet = curr_msg_to_parse
+            else:
+                # we want to continue the iteration if we ended the last packet
+                continue_iteration = True
+                while(continue_iteration and len(curr_msg_to_parse) > METADATA_LENGTH):
+                    # invariant here is that we at least have the metadata available
+                    md = self.parse_metadata(curr_msg_to_parse)
+                    if (not (md.version == VERSION)):
+                        # TODO throw response error, also maybe make sure that no packets of the same message id are processed
+                        return None
+                    else:
+                        curr_payload_size = md.payload_size
+                        if (len(curr_msg_to_parse[METADATA_LENGTH:]) < curr_payload_size):
+                            # wait to receive more since we dont have the entire payload yet
+                            continue_iteration = False
+                        else:
+                            # now we have the whole packet, we can parse the data.
+                            # parse payload size of the built up msg starting from after the metadata
+                            packet_to_parse = curr_msg_to_parse[METADATA_LENGTH: curr_payload_size + METADATA_LENGTH]
+                            incomplete_msg = packet_to_parse.decode('ascii')
+                            if (curr_msg_id == md.message_id and curr_op == md.operation_code):
+                                running_msg += incomplete_msg
+                            else:
+                                # else this is a new message
+                                running_msg = incomplete_msg
+                                curr_msg_id = md.message_id
+                            # if running msg is done, then do something based on op codes and such
+                            if (running_msg[-1] == '\n'):
+                                #TODO do something, reset running vars
+                                processFn(client, md, running_msg, msg_id_accum)
+                                msg_id_accum += 1
+                                curr_msg_id = -1
+                                curr_op = -1
+                                running_msg = '' 
+                            # once we've processed the current packet, we want to set the curr_msg_to_parse
+                            # to be the rest of the total msg, and then iterate over the total msg to parse again
+                            curr_msg_to_parse = curr_msg_to_parse[curr_payload_size + METADATA_LENGTH:]
+                left_over_packet = curr_msg_to_parse
+    
+    
+protocol_instance = Protocol(VERSION, METADATA_SIZES)
