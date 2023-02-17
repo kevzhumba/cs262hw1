@@ -35,7 +35,7 @@ OPERATION_ARGS = {
     'CREATE_ACCOUNT': ['username'],
     'CREATE_ACCOUNT_RESPONSE': ['status'],
     'LIST_ACCOUNTS': ['query'],
-    'LIST_ACCOUNTS_RESPONSE': ['accounts'],
+    'LIST_ACCOUNTS_RESPONSE': ['status', 'accounts'],
     'SEND_MESSAGE': ['recipient', 'message'],
     'SEND_MESSAGE_RESPONSE': ['status'],
     'DELETE_ACCOUNT': [],

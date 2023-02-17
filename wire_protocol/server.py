@@ -1,6 +1,7 @@
 import socket
 import protocol
 import threading
+import re
 
 HOST = '127.0.0.1'
 PORT = 6000
@@ -38,7 +39,6 @@ def atomicIsAccountCreated(recipient):
     account_list_lock.release()
     return ret
 
-
 def process_operation_curried(socket_lock):
     def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
         match metadata.operation_code.value:
@@ -61,6 +61,22 @@ def process_operation_curried(socket_lock):
                         account_list_lock.release() #if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
                         response = protocol.protocol_instance.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success'})
                         send(client_socket, socket_lock, response)
+            case 3: 
+                args = protocol.protocol_instance.parse_data(msg)
+                try:
+                    pattern = re.compile(args['query'])
+                    account_list_lock.acquire()
+                    result = []
+                    for account in account_list:
+                        if pattern.match(account):
+                            result.append(account)
+                    account_list_lock.release()
+                    response = protocol.protocol_instance.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {'status': 'Success', 'account' : "; ".join(result)})
+                    send(client_socket, socket_lock, response)
+                except:
+                    response = protocol.protocol_instance.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {'status': 'Error: regex is malformed'})
+                    send(client_socket, socket_lock, response)
+
             case 5: #SENDMSG
                 # in this case we want to add to undelivered messages, which the server iterator will figure out i think
                 # here we check the person sending is logged in and the recipient account has been created
