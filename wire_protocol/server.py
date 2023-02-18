@@ -66,9 +66,9 @@ def process_operation_curried(socket_lock):
                         # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
                         account_list_lock.release()
                         response = protocol.protocol_instance.encode(
-                            'CREATE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success'})
+                            'CREATE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success', 'username': account_name})
                         send(client_socket, socket_lock, response)
-            case 3:
+            case 3:  # LIST ACCOUNTS
                 args = protocol.protocol_instance.parse_data(msg)
                 try:
                     pattern = re.compile(args['query'])
@@ -160,7 +160,7 @@ def process_operation_curried(socket_lock):
                             client_socket, socket_lock)
                         logged_in_lock.release()
                         response = protocol.protocol_instance.encode(
-                            'LOG_IN_RESPONSE', id_accum, {'status': 'Success'})
+                            'LOG_IN_RESPONSE', id_accum, {'status': 'Success', 'username': account_name})
                         send(client_socket, socket_lock, response)
             case 11:  # LOGOFF
                 logged_in_lock.acquire()

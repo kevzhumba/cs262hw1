@@ -19,7 +19,7 @@ class Client:
             self.socket.connect((self.server_host, self.port))
 
             thread = threading.Thread(
-                target=listen_to_server, args=(self.socket, ))
+                target=listen_to_server, args=(self, ))
             thread.start()
             print('Connected to server')
         except:
@@ -84,57 +84,57 @@ class Client:
         message = protocol.protocol_instance.encode('DELETE_ACCOUNT')
         self.socket.send(message)
 
+    def process_operation_curry(self, out_lock):
+        def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
+            args = protocol.protocol_instance.parse_data(msg)
+            match metadata.operation_code.value:
+                case 2:  # Create account response
+                    if args['status'] == "Success":
+                        self.username = args['username']
+                        atomic_print(
+                            out_lock, "Account creation successful. You are now logged in")
+                    else:
+                        atomic_print(out_lock, args['status'])
+                case 4:  # list accounts response
+                    if args['status'] == "Success":
+                        atomic_print(
+                            out_lock, f"The account list is {args['accounts']}")
+                    else:
+                        atomic_print(out_lock, args['status'])
+                case 6:  # Send message response
+                    if not args['status'] == "Success":
+                        atomic_print(out_lock, args['status'])
+                case 8:  # Delete Account response
+                    if args['status'] == "Success":
+                        self.username = None
+                        atomic_print(
+                            out_lock, "Deleting account successful; you are now logged out")
+                    else:
+                        atomic_print(out_lock, args['status'])
+                case 10:  # LOGIN
+                    if args['status'] == "Success":
+                        self.username = args['username']
+                        atomic_print(out_lock, "You are now logged in")
+                    else:
+                        atomic_print(out_lock, args['status'])
+                case 12:  # LOGOFF
+                    if args['status'] == "Success":
+                        self.username = None
+                        atomic_print(out_lock, "You are now logged out")
+                    else:
+                        atomic_print(out_lock, args['status'])
+                case 13:  # Receive message
+                    atomic_print(
+                        out_lock, f"From {args['sender']}: {args['message']}")
+        return process_operation
 
-def listen_to_server(client):
+
+def listen_to_server(client: Client):
     protocol.protocol_instance.read_packets(
-        client, process_operation_curry(std_out_lock))
+        client.socket, client.process_operation_curry(std_out_lock))
 
 
 def atomic_print(lock, msg):
     lock.acquire()
     print(msg)
     lock.release()
-
-
-def process_operation_curry(out_lock):
-    def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
-        args = protocol.protocol_instance.parse_data(msg)
-        match metadata.operation_code.value:
-            case 2:  # Create account response
-                if args['status'] == "Success":
-                    atomic_print(
-                        std_out_lock, "Account creation successful. You are now logged in")
-                else:
-                    atomic_print(std_out_lock, args['status'])
-            case 4:  # list accounts response
-                if args['status'] == "Success":
-                    atomic_print(
-                        std_out_lock, f"The account list is {args['accounts']}")
-                else:
-                    atomic_print(std_out_lock, args['status'])
-            case 6:  # Send message response
-                if not args['status'] == "Success":
-                    atomic_print(std_out_lock, args['status'])
-            case 8:  # Delete Account response
-                if args['status'] == "Success":
-                    # TODO log out on the client side
-                    atomic_print(
-                        std_out_lock, "Deleting account successful; you are now logged out")
-                else:
-                    atomic_print(std_out_lock, args['status'])
-            case 10:  # LOGIN
-                if args['status'] == "Success":
-                    # TODO log in on the client side
-                    atomic_print(std_out_lock, "You are now logged in")
-                else:
-                    atomic_print(std_out_lock, args['status'])
-            case 12:  # LOGOFF
-                if args['status'] == "Success":
-                    # TODO log out on the client side
-                    atomic_print(std_out_lock, "You are now logged out")
-                else:
-                    atomic_print(std_out_lock, args['status'])
-            case 13:  # Receive message
-                atomic_print(
-                    std_out_lock, f"From {args['sender']}: {args['message']}")
-    return process_operation
