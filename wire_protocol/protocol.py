@@ -59,13 +59,15 @@ class Message:
 
     def get_version(self) -> int:
         return self.version
-    
+
+
 class Metadata:
     def __init__(self, version: bytes, header_length: bytes, operation_code: bytes,
                  message_size: bytes, payload_size: bytes, message_id: bytes) -> None:
         self.version = int.from_bytes(version, 'big')
         self.header_length = int.from_bytes(header_length, 'big')
-        self.operation_code = OperationCode(int.from_bytes(operation_code, 'big'))
+        self.operation_code = OperationCode(
+            int.from_bytes(operation_code, 'big'))
         self.message_size = int.from_bytes(message_size, 'big')
         self.payload_size = int.from_bytes(payload_size, 'big')
         self.message_id = int.from_bytes(message_id, 'big')
@@ -137,10 +139,10 @@ class Protocol:
         # Read pa
         pass
 
-    def parse_data(self, op: int, data: str) -> dict[str, str]:           
-        kv_pairs = data.split(self.separator, OPERATION_ARGS[OperationCode(op).name])
-        dict(map(lambda x: tuple(x.split("=")), kv_pairs))
-        
+    def parse_data(self, op: int, data: str) -> dict[str, str]:
+        kv_pairs = data.split(
+            self.separator, OPERATION_ARGS[OperationCode(op).name])
+        dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
 
     def parse_metadata(self, bytes) -> Metadata:
         '''
@@ -149,7 +151,7 @@ class Protocol:
         # bytes is the result of client recv
         # idx is the byte index into the metadata we are currently readin
         return Metadata(bytes[0:1], bytes[1:2], bytes[2:3], bytes[3:6], bytes[6:8], bytes[8:10])
-    
+
     def read_packets(self, client, processFn):
         # Handle ending/disconnecting later
         curr_msg_id = -1
@@ -159,11 +161,11 @@ class Protocol:
         left_over_packet = bytes()
         running_msg = ""
         while True:
-            #chekc user input
-            #if user input exists then send 
+            # chekc user input
+            # if user input exists then send
             msg = client.recv(2048)
             if (msg == 0):
-                # client disconnected   
+                # client disconnected
                 break
             curr_msg_to_parse = left_over_packet + msg
             if (len(curr_msg_to_parse) < METADATA_LENGTH):
@@ -185,7 +187,8 @@ class Protocol:
                         else:
                             # now we have the whole packet, we can parse the data.
                             # parse payload size of the built up msg starting from after the metadata
-                            packet_to_parse = curr_msg_to_parse[METADATA_LENGTH: curr_payload_size + METADATA_LENGTH]
+                            packet_to_parse = curr_msg_to_parse[METADATA_LENGTH:
+                                                                curr_payload_size + METADATA_LENGTH]
                             incomplete_msg = packet_to_parse.decode('ascii')
                             if (curr_msg_id == md.message_id and curr_op == md.operation_code):
                                 running_msg += incomplete_msg
@@ -195,16 +198,18 @@ class Protocol:
                                 curr_msg_id = md.message_id
                             # if running msg is done, then do something based on op codes and such
                             if (running_msg[-1] == '\n'):
-                                #TODO do something, reset running vars
-                                processFn(client, md, running_msg, msg_id_accum)
+                                # TODO do something, reset running vars
+                                processFn(client, md, running_msg,
+                                          msg_id_accum)
                                 msg_id_accum += 1
                                 curr_msg_id = -1
                                 curr_op = -1
-                                running_msg = '' 
+                                running_msg = ''
                             # once we've processed the current packet, we want to set the curr_msg_to_parse
                             # to be the rest of the total msg, and then iterate over the total msg to parse again
-                            curr_msg_to_parse = curr_msg_to_parse[curr_payload_size + METADATA_LENGTH:]
+                            curr_msg_to_parse = curr_msg_to_parse[curr_payload_size +
+                                                                  METADATA_LENGTH:]
                 left_over_packet = curr_msg_to_parse
-    
-    
+
+
 protocol_instance = Protocol(VERSION, METADATA_SIZES)
