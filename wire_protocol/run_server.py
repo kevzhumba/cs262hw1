@@ -12,6 +12,11 @@ if __name__ == '__main__':
     server_socket.bind((HOST, PORT))
     print("Server started.")
     server_socket.listen()
+
+    message_delivery_thread = threading.Thread(
+        target=server.send_messages)
+    message_delivery_thread.start()
+
     while(True):
         try:
             clientsocket, addr = server_socket.accept()

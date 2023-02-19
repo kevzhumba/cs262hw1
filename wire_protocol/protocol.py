@@ -142,6 +142,9 @@ class Protocol:
         for msg in msgs:
             self._send_one_msg(client_socket, msg, socket_lock)
 
+        # TODO - should return true if entire message was sent, otherwise false
+        return True
+
     def _send_one_msg(self, client_socket, msg: bytes, socket_lock=None):
         if socket_lock is not None:
             socket_lock.acquire()

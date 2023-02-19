@@ -29,11 +29,13 @@ class Client:
     def disconnect(self):
         self.socket.close()
 
+    def _get_prompt(self):
+        command_line_prefix = f'{self.username} >' if self.username else '>'
+        return f"{command_line_prefix} Enter command (type 'help' for list of commands): "
+
     def run(self):
         while True:
-            command_line_prefix = f'{self.username} >' if self.username else '>'
-            user_input = input(
-                f"{command_line_prefix} Enter command (type 'help' for list of commands): ")
+            user_input = input(self._get_prompt())
             user_input = user_input.lower().strip()
             match user_input:
                 case 'help':
@@ -137,7 +139,8 @@ class Client:
                         atomic_print(out_lock, args['status'])
                 case 13:  # Receive message
                     atomic_print(
-                        out_lock, f"From {args['sender']}: {args['message']}")
+                        out_lock, f"Message from {args['sender']}: {args['message']} \n\n{self._get_prompt()}")
+                    # atomic_print(out_lock, self._get_prompt(), end=' ')
         return process_operation
 
 
@@ -146,7 +149,7 @@ def listen_to_server(client: Client):
         client.socket, client.process_operation_curry(std_out_lock))
 
 
-def atomic_print(lock, msg):
+def atomic_print(lock, msg, end=None):
     lock.acquire()
-    print(msg)
+    print(msg, end=end)
     lock.release()

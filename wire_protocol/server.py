@@ -1,4 +1,5 @@
 import socket
+from time import sleep
 import protocol
 import threading
 import re
@@ -111,8 +112,9 @@ def process_operation_curried(socket_lock):
                     logged_in_lock.release()
                     recipient = args["recipient"]
                     message = args["message"]
+                    print("sending message", recipient, message)
                     account_list_lock.acquire()
-                    if (not recipient in account_list):
+                    if recipient not in account_list:
                         account_list_lock.release()
                         response = protocol.protocol_instance.encode('SEND_MESSAGE_RESPONSE', id_accum, {
                                                                      'status': 'Error: The recipient of the message does not exist.'})
@@ -120,9 +122,8 @@ def process_operation_curried(socket_lock):
                             client_socket, response, socket_lock)
                     else:
                         undelivered_msg_lock.acquire()
-                        if (recipient in undelivered_msg.keys()):
-                            undelivered_msg[recipient] = undelivered_msg[recipient] + \
-                                [(username, message)]
+                        if recipient in undelivered_msg:
+                            undelivered_msg[recipient] += [(username, message)]
                         else:
                             undelivered_msg[recipient] = [(username, message)]
                         undelivered_msg_lock.release()
@@ -200,14 +201,25 @@ def process_operation_curried(socket_lock):
 
 def handle_undelivered_messages():
     undelivered_msg_lock.acquire()
-    for (k, v) in undelivered_msg.items():
+    for recipient, message_infos in undelivered_msg.items():
         logged_in_lock.acquire()
-        if (k in logged_in_user_to_client_socket):
-            (client_socket, socket_lock) = logged_in_user_to_client_socket(k)
-            for (sender, msg) in v:
+        if recipient in logged_in_user_to_client_socket:
+            client_socket, socket_lock = logged_in_user_to_client_socket[recipient]
+            undelivered_messages = []
+            for (sender, msg) in message_infos:
                 response = protocol.protocol_instance.encode(
-                    "RECV_MESSAGE", msg_accum, {"sender": k, "message": msg})
-                protocol.protocol_instance.send(
+                    "RECV_MESSAGE", msg_accum, {"sender": sender, "message": msg})
+                status = protocol.protocol_instance.send(
                     client_socket, response, socket_lock)
+                if not status:
+                    undelivered_messages.append((sender, msg))
+            undelivered_msg[recipient] = undelivered_messages
+
         logged_in_lock.release()
     undelivered_msg_lock.release()
+
+
+def send_messages():
+    while True:
+        handle_undelivered_messages()
+        sleep(0.1)
