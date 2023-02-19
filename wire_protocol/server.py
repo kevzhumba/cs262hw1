@@ -20,7 +20,7 @@ def handle_client(client, socket_lock):
 def atomicIsLoggedIn(client_socket, socket_lock):
     ret = True
     logged_in_lock.acquire()
-    if (not (client_socket, socket_lock) in logged_in_user_to_client_socket.values):
+    if (client_socket, socket_lock) not in logged_in_user_to_client_socket.values():
         ret = False
     logged_in_lock.release()
     return ret
@@ -43,12 +43,14 @@ def atomicIsAccountCreated(recipient):
 
 def process_operation_curried(socket_lock):
     def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
-        match metadata.operation_code.value:
+        operation_code = metadata.operation_code.value
+        args = protocol.protocol_instance.parse_data(operation_code, msg)
+        match operation_code:
             # TODO check log in status with operations i.e. cant log in if already logged in, cant create account if already logged in, cant log out if not logged in,
             # cant send message if not logged in
-            case 1:  # LOGIN
-                account_name = msg[len("username="):]
-                if (atomicIsLoggedIn(client_socket, socket_lock)):
+            case 1:  # CREATE_ACCOUNT
+                account_name = args["username"]
+                if atomicIsLoggedIn(client_socket, socket_lock):
                     response = protocol.protocol_instance.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
                                                                  'status': 'Error: User can\'t create an account while logged in'})
                     protocol.protocol_instance.send(
@@ -72,7 +74,6 @@ def process_operation_curried(socket_lock):
                         protocol.protocol_instance.send(
                             client_socket, response, socket_lock)
             case 3:  # LIST ACCOUNTS
-                args = protocol.protocol_instance.parse_data(msg)
                 try:
                     pattern = re.compile(args['query'])
                     account_list_lock.acquire()
@@ -105,9 +106,8 @@ def process_operation_curried(socket_lock):
                     username = [k for k, v in logged_in_user_to_client_socket.items() if v == (
                         client_socket, socket_lock)][0]
                     logged_in_lock.release()
-                    args = msg.split('\r')
-                    recipient = args[0][len("recipient="):]
-                    message = args[1][len("message="):]
+                    recipient = args["recipient"]
+                    message = args["message"]
                     account_list_lock.acquire()
                     if (not recipient in account_list):
                         account_list_lock.release()
@@ -154,7 +154,7 @@ def process_operation_curried(socket_lock):
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
                 else:
-                    account_name = msg[len("username="):]
+                    account_name = args['username']
                     if (not atomicIsAccountCreated(account_name)):
                         logged_in_lock.release()
                         response = protocol.protocol_instance.encode(

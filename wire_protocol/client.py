@@ -93,8 +93,9 @@ class Client:
 
     def process_operation_curry(self, out_lock):
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
-            args = protocol.protocol_instance.parse_data(msg)
-            match metadata.operation_code.value:
+            operation_code = metadata.operation_code.value
+            args = protocol.protocol_instance.parse_data(operation_code, msg)
+            match operation_code:
                 case 2:  # Create account response
                     if args['status'] == "Success":
                         self.username = args['username']

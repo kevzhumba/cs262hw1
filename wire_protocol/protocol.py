@@ -91,6 +91,7 @@ class Protocol:
             self.metadata_sizes['message_id']
 
     def encode(self, operation: str, message_id: int, operation_args={}) -> List[bytes]:
+        print("Encoding message", operation, message_id, operation_args)
         # Check for necessary arguments
         if set(OPERATION_ARGS[operation]).intersection(set(operation_args.keys())) != set(OPERATION_ARGS[operation]):
             raise ValueError(
@@ -166,9 +167,9 @@ class Protocol:
         if socket_lock is not None:
             socket_lock.release()
 
-    def parse_data(self, op: int, data: str) -> dict[str, str]:
+    def parse_data(self, op: int, data: str) -> Dict[str, str]:
         kv_pairs = data.split(
-            self.separator, OPERATION_ARGS[OperationCode(op).name])
+            self.separator, len(OPERATION_ARGS[OperationCode(op).name]))
         dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
 
     def parse_metadata(self, bytes) -> Metadata:
