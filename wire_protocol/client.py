@@ -31,8 +31,9 @@ class Client:
 
     def run(self):
         while True:
+            command_line_prefix = f'{self.username} >' if self.username else '>'
             user_input = input(
-                "Enter command (type 'help' for list of commands): ")
+                f"{command_line_prefix} Enter command (type 'help' for list of commands): ")
             user_input = user_input.lower().strip()
             match user_input:
                 case 'help':
@@ -109,7 +110,7 @@ class Client:
                 case 4:  # list accounts response
                     if args['status'] == "Success":
                         atomic_print(
-                            out_lock, f"The account list is {args['accounts']}")
+                            out_lock, f"Account search results:\n{args['accounts']}")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 6:  # Send message response

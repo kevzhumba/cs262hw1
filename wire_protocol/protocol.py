@@ -91,7 +91,8 @@ class Protocol:
             self.metadata_sizes['message_id']
 
     def encode(self, operation: str, message_id: int, operation_args={}) -> List[bytes]:
-        print("Encoding message", operation, message_id, operation_args)
+        # TODO - debug flag
+        # print("Encoding message", operation, message_id, operation_args)
         # Check for necessary arguments
         if set(OPERATION_ARGS[operation]).intersection(set(operation_args.keys())) != set(OPERATION_ARGS[operation]):
             raise ValueError(
@@ -148,9 +149,10 @@ class Protocol:
         while total_sent < len(msg):
             try:
                 bytes_sent = client_socket.send(msg, MAX_PAYLOAD_SIZE)
-                print(f"Sent {bytes_sent} bytes")
+                # TODO - debug flag
+                # print(f"Sent {bytes_sent} bytes")
                 # if (bytes_sent == 0):
-                #     # TODO handle correctly
+                #     # TODO figure out how this works for nonblocking sockets
                 #     if socket_lock is not None:
                 #         socket_lock.release()
                 #     raise RuntimeError("socket connection broken")
@@ -170,6 +172,7 @@ class Protocol:
     def parse_data(self, op: int, data: str) -> Dict[str, str]:
         kv_pairs = data.split(
             self.separator, len(OPERATION_ARGS[OperationCode(op).name]))
+        kv_pairs = [kv_pair for kv_pair in kv_pairs if kv_pair]
         return dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
 
     def parse_metadata(self, bytes) -> Metadata:
@@ -198,6 +201,7 @@ class Protocol:
                 select.select([client], [], [])
             else:
                 if (msg == 0):
+                    # TODO figure out how this works for nonblocking sockets
                     # client disconnected
                     print('Client disconnected')
                     break

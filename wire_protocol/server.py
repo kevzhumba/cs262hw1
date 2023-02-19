@@ -77,7 +77,8 @@ def process_operation_curried(socket_lock):
                             client_socket, response, socket_lock)
             case 3:  # LIST ACCOUNTS
                 try:
-                    pattern = re.compile(args['query'])
+                    pattern = re.compile(
+                        fr"{args['query']}", flags=re.IGNORECASE)
                     account_list_lock.acquire()
                     result = []
                     for account in account_list:
@@ -85,12 +86,12 @@ def process_operation_curried(socket_lock):
                             result.append(account)
                     account_list_lock.release()
                     response = protocol.protocol_instance.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                                                                 'status': 'Success', 'account': "; ".join(result)})
+                                                                 'status': 'Success', 'accounts': "\n".join(result)})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
                 except:
                     response = protocol.protocol_instance.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                                                                 'status': 'Error: regex is malformed.'})
+                                                                 'status': 'Error: regex is malformed.', 'accounts': ''})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
 
