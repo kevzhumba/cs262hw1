@@ -36,7 +36,7 @@ class Client:
             match user_input:
                 case 'help':
                     atomic_print(
-                        std_out_lock, 'List of commands: \nCreate account: 1 \nLogin: 2 \nList accounts: 3 \nSend message: 4 \nLogoff: 5 \nDelete account: 6')
+                        std_out_lock, 'Enter one of the following command numbers: \n1 - Create account \n2 - Login \n3 - List accounts \n4 - Send message \n5 - Logoff \n6 - Delete account')
                 case '1' | 'create account':
                     self._login_or_create_account('CREATE_ACCOUNT')
                 case '2' | 'login':
