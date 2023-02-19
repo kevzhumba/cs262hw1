@@ -10,6 +10,7 @@ if __name__ == '__main__':
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setblocking(0)
     server_socket.bind((HOST, PORT))
+    print("Server started.")
     server_socket.listen()
     while(True):
         try:
