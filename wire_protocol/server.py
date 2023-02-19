@@ -44,6 +44,7 @@ def atomicIsAccountCreated(recipient):
 def process_operation_curried(socket_lock):
     def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
         operation_code = metadata.operation_code.value
+        print(msg)
         args = protocol.protocol_instance.parse_data(operation_code, msg)
         match operation_code:
             # TODO check log in status with operations i.e. cant log in if already logged in, cant create account if already logged in, cant log out if not logged in,
@@ -52,7 +53,7 @@ def process_operation_curried(socket_lock):
                 account_name = args["username"]
                 if atomicIsLoggedIn(client_socket, socket_lock):
                     response = protocol.protocol_instance.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                                                                 'status': 'Error: User can\'t create an account while logged in'})
+                                                                 'status': 'Error: User can\'t create an account while logged in.', 'username': account_name})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
                 else:
@@ -60,7 +61,7 @@ def process_operation_curried(socket_lock):
                     if (account_name in account_list):
                         account_list_lock.release()
                         response = protocol.protocol_instance.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                                                                     'status': 'Error: Account already exists'})
+                                                                     'status': 'Error: Account already exists.', 'username': account_name})
                         protocol.protocol_instance.send(
                             client_socket, response, socket_lock)
                     else:
@@ -69,6 +70,7 @@ def process_operation_curried(socket_lock):
                                     account_name)  # accountLock > login
                         # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
                         account_list_lock.release()
+                        print("Account created: " + account_name)
                         response = protocol.protocol_instance.encode(
                             'CREATE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success', 'username': account_name})
                         protocol.protocol_instance.send(
@@ -88,7 +90,7 @@ def process_operation_curried(socket_lock):
                         client_socket, response, socket_lock)
                 except:
                     response = protocol.protocol_instance.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                                                                 'status': 'Error: regex is malformed'})
+                                                                 'status': 'Error: regex is malformed.'})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
 
@@ -99,7 +101,7 @@ def process_operation_curried(socket_lock):
                 if (not (client_socket, socket_lock) in logged_in_user_to_client_socket.values()):
                     logged_in_lock.release()
                     response = protocol.protocol_instance.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                                                                 'status': 'Error: Need to be logged in to send a message'})
+                                                                 'status': 'Error: Need to be logged in to send a message.'})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
                 else:
@@ -112,7 +114,7 @@ def process_operation_curried(socket_lock):
                     if (not recipient in account_list):
                         account_list_lock.release()
                         response = protocol.protocol_instance.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                                                                     'status': 'Error: The recipient of the message does not exist'})
+                                                                     'status': 'Error: The recipient of the message does not exist.'})
                         protocol.protocol_instance.send(
                             client_socket, response, socket_lock)
                     else:
@@ -142,7 +144,7 @@ def process_operation_curried(socket_lock):
                 else:
                     logged_in_lock.release()
                     response = protocol.protocol_instance.encode('DELETE_ACCOUNT_RESPONSE', id_accum, {
-                                                                 'status': 'Error: Need to be logged in to delete your account'})
+                                                                 'status': 'Error: Need to be logged in to delete your account.'})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
             case 9:  # LOGIN
@@ -150,7 +152,7 @@ def process_operation_curried(socket_lock):
                 if ((client_socket, socket_lock) in logged_in_user_to_client_socket.values()):
                     logged_in_lock.release()
                     response = protocol.protocol_instance.encode('LOG_IN_RESPONSE', id_accum, {
-                                                                 'status': 'Error: Already logged into an account, please log off first'})
+                                                                 'status': 'Error: Already logged into an account, please log off first.', 'username': ''})
                     protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
                 else:
@@ -158,13 +160,13 @@ def process_operation_curried(socket_lock):
                     if (not atomicIsAccountCreated(account_name)):
                         logged_in_lock.release()
                         response = protocol.protocol_instance.encode(
-                            'LOG_IN_RESPONSE', id_accum, {'status': 'Error: Account does not exist'})
+                            'LOG_IN_RESPONSE', id_accum, {'status': 'Error: Account does not exist.', 'username': account_name})
                         protocol.protocol_instance.send(
                             client_socket, response, socket_lock)
                     elif (account_name in logged_in_user_to_client_socket.keys()):
                         logged_in_lock.release()
                         response = protocol.protocol_instance.encode('LOG_IN_RESPONSE', id_accum, {
-                                                                     'status': 'Error: Someone else is logged into that account'})
+                                                                     'status': 'Error: Someone else is logged into that account.', 'username': account_name})
                         protocol.protocol_instance.send(
                             client_socket, response, socket_lock)
                     else:
@@ -189,7 +191,7 @@ def process_operation_curried(socket_lock):
                 else:
                     logged_in_lock.release()
                     response = protocol.protocol_instance.encode('LOG_OFF_RESPONSE', id_accum, {
-                                                                 'status': 'Error: Need to be logged in to log out of your account'})
+                                                                 'status': 'Error: Need to be logged in to log out of your account.'})
                     protocol.protocol_instance.protocol.protocol_instance.send(
                         client_socket, response, socket_lock)
     return process_operation

@@ -36,7 +36,7 @@ class OperationCode(Enum):
 
 OPERATION_ARGS = {
     'CREATE_ACCOUNT': ['username'],
-    'CREATE_ACCOUNT_RESPONSE': ['status'],
+    'CREATE_ACCOUNT_RESPONSE': ['status', 'username'],
     'LIST_ACCOUNTS': ['query'],
     'LIST_ACCOUNTS_RESPONSE': ['status', 'accounts'],
     'SEND_MESSAGE': ['recipient', 'message'],
@@ -44,7 +44,7 @@ OPERATION_ARGS = {
     'DELETE_ACCOUNT': [],
     'DELETE_ACCOUNT_RESPONSE': ['status'],
     'LOG_IN': ['username'],
-    'LOG_IN_RESPONSE': ['status'],
+    'LOG_IN_RESPONSE': ['status', 'username'],
     'LOG_OFF': [],
     'LOG_OFF_RESPONSE': ['status'],
     'RECV_MESSAGE': ['sender', 'message']
@@ -170,11 +170,11 @@ class Protocol:
     def parse_data(self, op: int, data: str) -> Dict[str, str]:
         kv_pairs = data.split(
             self.separator, len(OPERATION_ARGS[OperationCode(op).name]))
-        dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
+        return dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
 
     def parse_metadata(self, bytes) -> Metadata:
         '''
-            Takes in a bytes object and parses the metadata. 
+            Takes in a bytes object and parses the metadata.
         '''
         # bytes is the result of client recv
         # idx is the byte index into the metadata we are currently readin
@@ -233,10 +233,8 @@ class Protocol:
                                     curr_msg_id = md.message_id
                                 # if running msg is done, then do something based on op codes and such
                                 if (running_msg[-1] == '\n'):
-                                    print('Reached end of message',
-                                          running_msg, md.operation_code)
                                     # TODO do something, reset running vars
-                                    processFn(client, md, running_msg,
+                                    processFn(client, md, running_msg[:-1],
                                               msg_id_accum)
                                     msg_id_accum += 1
                                     curr_msg_id = -1

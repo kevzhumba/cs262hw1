@@ -1,4 +1,5 @@
 import socket
+from time import sleep
 import protocol
 import threading
 from typing import Literal
@@ -51,6 +52,7 @@ class Client:
                     self._delete_account()
                 case _:
                     atomic_print(std_out_lock, 'Invalid command')
+            sleep(0.2)
 
     def _login_or_create_account(self, action: Literal['LOG_IN', 'CREATE_ACCOUNT']):
         username = input('Enter username: ')
@@ -95,12 +97,13 @@ class Client:
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
             operation_code = metadata.operation_code.value
             args = protocol.protocol_instance.parse_data(operation_code, msg)
+            atomic_print(out_lock, '')
             match operation_code:
                 case 2:  # Create account response
                     if args['status'] == "Success":
                         self.username = args['username']
                         atomic_print(
-                            out_lock, "Account creation successful. You are now logged in")
+                            out_lock, "Account creation successful. You are now logged in.")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 4:  # list accounts response
@@ -116,19 +119,19 @@ class Client:
                     if args['status'] == "Success":
                         self.username = None
                         atomic_print(
-                            out_lock, "Deleting account successful; you are now logged out")
+                            out_lock, "Deleting account successful; you are now logged out.")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 10:  # LOGIN
                     if args['status'] == "Success":
                         self.username = args['username']
-                        atomic_print(out_lock, "You are now logged in")
+                        atomic_print(out_lock, "You are now logged in.")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 12:  # LOGOFF
                     if args['status'] == "Success":
                         self.username = None
-                        atomic_print(out_lock, "You are now logged out")
+                        atomic_print(out_lock, "You are now logged out.")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 13:  # Receive message
