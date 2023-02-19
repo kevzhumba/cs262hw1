@@ -87,15 +87,15 @@ class Protocol:
             self.metadata_sizes['payload_size'] + \
             self.metadata_sizes['message_id']
 
-    def encode(self, operation: str, message_id: int, **kwargs) -> List[bytes]:
+    def encode(self, operation: str, message_id: int, operation_args={}) -> List[bytes]:
         # Check for necessary arguments
-        if set(OPERATION_ARGS[operation]).intersection(set(kwargs.keys())) != set(OPERATION_ARGS[operation]):
+        if set(OPERATION_ARGS[operation]).intersection(set(operation_args.keys())) != set(OPERATION_ARGS[operation]):
             raise ValueError(
                 f"Missing arguments for operation {operation}. Required arguments: {OPERATION_ARGS[operation]}")
 
         # Join keyword arguments with separator
         data = self.separator.join(
-            [f"{key}={value}" if key in OPERATION_ARGS[operation] else "" for key, value in kwargs.items()])
+            [f"{key}={value}" if key in OPERATION_ARGS[operation] else "" for key, value in operation_args.items()])
 
         # Encode metadata and data into byte messages (multiple for large messages)
         return self._encode(OperationCode[operation].value, message_id, data)
@@ -131,13 +131,20 @@ class Protocol:
     def _encode_data(self, data: str) -> bytes:
         return data.encode('ascii')
 
-    def _decode(self, message: bytes) -> Message:
-        #
-        # Read in version number, make sure it matches global version
-        # Read in header size, then parse in the next bits for the header size
-        # Parse the header and its attributes
-        # Read pa
-        pass
+    def send(self, client_socket, msg, socket_lock=None):
+        if socket_lock is not None:
+            socket_lock.acquire()
+        accum = 0
+        targetSize = len(msg)
+        while (not accum == targetSize):
+            sent = client_socket.send(msg, MAX_PAYLOAD_SIZE)
+            if (sent == 0):
+                # TODO handle correctly
+                socket_lock.release()
+                raise RuntimeError("socket connection broken")
+            accum += sent
+        if socket_lock is not None:
+            socket_lock.release()
 
     def parse_data(self, op: int, data: str) -> dict[str, str]:
         kv_pairs = data.split(
@@ -163,7 +170,7 @@ class Protocol:
         while True:
             # chekc user input
             # if user input exists then send
-            msg = client.recv(2048)
+            msg = client.recv(MAX_PAYLOAD_SIZE)
             if (msg == 0):
                 # client disconnected
                 break
