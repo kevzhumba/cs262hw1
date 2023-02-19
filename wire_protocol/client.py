@@ -57,8 +57,9 @@ class Client:
         # Check valid username, only letters and numbers
         if username.strip().isalnum() and 5 <= len(username) <= 20:
             message = protocol.protocol_instance.encode(
-                action, {'username': username})
-            self.socket.send(message)
+                action, self.message_counter, {'username': username})
+            self.message_counter += 1
+            protocol.protocol_instance.send(self.socket, message)
         else:
             atomic_print(
                 std_out_lock, 'Invalid username. Username must be between 5 and 20 characters and only contain letters and numbers.')
@@ -66,23 +67,29 @@ class Client:
     def _list_accounts(self):
         query = input('Enter query: ')
         message = protocol.protocol_instance.encode(
-            'LIST_ACCOUNTS', {'query': query})
-        self.socket.send(message)
+            'LIST_ACCOUNTS', self.message_counter, {'query': query})
+        self.message_counter += 1
+        protocol.protocol_instance.send(self.socket, message)
 
     def _send_message(self):
         user = input('Enter recipient username: ')
         user_msg = input('Enter message: ')
         message = protocol.protocol_instance.encode(
-            'SEND_MESSAGE', {'recipient': user, 'message': user_msg})
-        self.socket.send(message)
+            'SEND_MESSAGE', self.message_counter, {'recipient': user, 'message': user_msg})
+        self.message_counter += 1
+        protocol.protocol_instance.send(self.socket, message)
 
     def _logoff(self):
-        message = protocol.protocol_instance.encode('LOG_OFF')
-        self.socket.send(message)
+        message = protocol.protocol_instance.encode(
+            'LOG_OFF', self.message_counter)
+        self.message_counter += 1
+        protocol.protocol_instance.send(self.socket, message)
 
     def _delete_account(self):
-        message = protocol.protocol_instance.encode('DELETE_ACCOUNT')
-        self.socket.send(message)
+        message = protocol.protocol_instance.encode(
+            'DELETE_ACCOUNT', self.message_counter)
+        self.message_counter += 1
+        protocol.protocol_instance.send(self.socket, message)
 
     def process_operation_curry(self, out_lock):
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
