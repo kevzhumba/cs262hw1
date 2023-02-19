@@ -18,7 +18,7 @@ class Server:
         self.undelivered_msg_lock = threading.Lock()
         self.protocol = protocol
         self.thread_lock = threading.Lock()
-    
+
     def disconnect(self):
         self.socket.close()
 
@@ -40,13 +40,11 @@ class Server:
         self.logged_in_lock.release()
         return ret
 
-
     def atomicLogIn(self, client_socket, socket_lock, account_name):
         self.logged_in_lock.acquire()
         self.logged_in[account_name] = (
             client_socket, socket_lock)
         self.logged_in_lock.release()
-
 
     def atomicIsAccountCreated(self, recipient):
         ret = True
@@ -54,7 +52,6 @@ class Server:
         ret = recipient in self.account_list
         self.account_list_lock.release()
         return ret
-
 
     def process_operation_curried(self, socket_lock):
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
@@ -66,7 +63,7 @@ class Server:
                     account_name = args["username"]
                     if self.atomicIsLoggedIn(client_socket, socket_lock):
                         response = self.protocol.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                                                                    'status': 'Error: User can\'t create an account while logged in.', 'username': account_name})
+                            'status': 'Error: User can\'t create an account while logged in.', 'username': account_name})
                         self.protocol.send(
                             client_socket, response, socket_lock)
                     else:
@@ -74,13 +71,13 @@ class Server:
                         if (account_name in self.account_list):
                             self.account_list_lock.release()
                             response = self.protocol.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                                                                        'status': 'Error: Account already exists.', 'username': account_name})
+                                'status': 'Error: Account already exists.', 'username': account_name})
                             self.protocol.send(
                                 client_socket, response, socket_lock)
                         else:
                             self.account_list.append(account_name)
                             self.atomicLogIn(client_socket, socket_lock,
-                                        account_name)  # accountLock > login
+                                             account_name)  # accountLock > login
                             # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
                             self.account_list_lock.release()
                             print("Account created: " + account_name)
@@ -99,12 +96,12 @@ class Server:
                                 result.append(account)
                         self.account_list_lock.release()
                         response = self.protocol.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                                                                    'status': 'Success', 'accounts': "\n".join(result)})
+                            'status': 'Success', 'accounts': "\n".join(result)})
                         self.protocol.send(
                             client_socket, response, socket_lock)
                     except:
                         response = self.protocol.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                                                                    'status': 'Error: regex is malformed.', 'accounts': ''})
+                            'status': 'Error: regex is malformed.', 'accounts': ''})
                         self.protocol.send(
                             client_socket, response, socket_lock)
 
@@ -115,7 +112,7 @@ class Server:
                     if (not (client_socket, socket_lock) in self.logged_in.values()):
                         self.logged_in_lock.release()
                         response = self.protocol.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                                                                    'status': 'Error: Need to be logged in to send a message.'})
+                            'status': 'Error: Need to be logged in to send a message.'})
                         self.protocol.send(
                             client_socket, response, socket_lock)
                     else:
@@ -129,15 +126,17 @@ class Server:
                         if recipient not in self.account_list:
                             self.account_list_lock.release()
                             response = self.protocol.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                                                                        'status': 'Error: The recipient of the message does not exist.'})
+                                'status': 'Error: The recipient of the message does not exist.'})
                             self.protocol.send(
                                 client_socket, response, socket_lock)
                         else:
                             self.undelivered_msg_lock.acquire()
                             if recipient in self.undelivered_msg:
-                                self.undelivered_msg[recipient] += [(username, message)]
+                                self.undelivered_msg[recipient] += [
+                                    (username, message)]
                             else:
-                                self.undelivered_msg[recipient] = [(username, message)]
+                                self.undelivered_msg[recipient] = [
+                                    (username, message)]
                             self.undelivered_msg_lock.release()
                             self.account_list_lock.release()  # ACCOUNT LIST > UNDELIVERED MSG
 
@@ -158,7 +157,7 @@ class Server:
                     else:
                         self.logged_in_lock.release()
                         response = self.protocol.encode('DELETE_ACCOUNT_RESPONSE', id_accum, {
-                                                                    'status': 'Error: Need to be logged in to delete your account.'})
+                            'status': 'Error: Need to be logged in to delete your account.'})
                         self.protocol.send(
                             client_socket, response, socket_lock)
                 case 9:  # LOGIN
@@ -166,7 +165,7 @@ class Server:
                     if ((client_socket, socket_lock) in self.logged_in.values()):
                         self.logged_in_lock.release()
                         response = self.protocol.encode('LOG_IN_RESPONSE', id_accum, {
-                                                                    'status': 'Error: Already logged into an account, please log off first.', 'username': ''})
+                            'status': 'Error: Already logged into an account, please log off first.', 'username': ''})
                         self.protocol.send(
                             client_socket, response, socket_lock)
                     else:
@@ -180,7 +179,7 @@ class Server:
                         elif (account_name in self.logged_in.keys()):
                             self.logged_in_lock.release()
                             response = self.protocol.encode('LOG_IN_RESPONSE', id_accum, {
-                                                                        'status': 'Error: Someone else is logged into that account.', 'username': account_name})
+                                'status': 'Error: Someone else is logged into that account.', 'username': account_name})
                             self.protocol.send(
                                 client_socket, response, socket_lock)
                         else:
@@ -205,11 +204,11 @@ class Server:
                     else:
                         self.logged_in_lock.release()
                         response = self.protocol.encode('LOG_OFF_RESPONSE', id_accum, {
-                                                                    'status': 'Error: Need to be logged in to log out of your account.'})
+                            'status': 'Error: Need to be logged in to log out of your account.'})
                         self.protocol.send(
                             client_socket, response, socket_lock)
         return process_operation
-        
+
     def handle_undelivered_messages(self):
         self.undelivered_msg_lock.acquire()
         for recipient, message_infos in self.undelivered_msg.items():
@@ -233,8 +232,7 @@ class Server:
     def send_messages(self):
         while True:
             self.handle_undelivered_messages()
-            sleep(0.1)
-    
+            sleep(0.01)
 
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -259,6 +257,3 @@ class Server:
                 pass
             finally:
                 self.handle_undelivered_messages()
-    
-
-
