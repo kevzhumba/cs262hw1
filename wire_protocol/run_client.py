@@ -10,5 +10,5 @@ if __name__ == '__main__':
         client_instance.connect()
         client_instance.run()
     except KeyboardInterrupt:
-        client_instance.close()
+        client_instance.disconnect()
         print('Disconnected from server')
