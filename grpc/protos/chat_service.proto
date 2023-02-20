@@ -1,8 +1,8 @@
 syntax = 'proto3';
 
-package chatserver;
+package chatservice;
 
-service ChatServer {
+service ChatService {
     rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {}
     rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse) {}
     rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
