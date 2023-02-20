@@ -248,6 +248,7 @@ class Server:
         while(True):
             try:
                 clientsocket, addr = server_socket.accept()
+                clientsocket.setblocking(1)
                 lock = threading.Lock()
                 thread = threading.Thread(
                     target=self.handle_client, args=(clientsocket, lock, ))
