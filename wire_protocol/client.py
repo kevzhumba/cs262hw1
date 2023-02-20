@@ -8,9 +8,10 @@ std_out_lock = threading.Lock()
 
 
 class Client:
-    def __init__(self, server_host, port):
+    def __init__(self, server_host, port, protocol):
         self.server_host = server_host
         self.port = port
+        self.protocol = protocol
         self.message_counter = 0
         self.username = None
 
@@ -19,8 +20,7 @@ class Client:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server_host, self.port))
 
-            thread = threading.Thread(
-                target=listen_to_server, args=(self, ))
+            thread = threading.Thread(target=self.listen_to_server)
             thread.start()
             print('Connected to server')
         except:
@@ -28,6 +28,10 @@ class Client:
 
     def disconnect(self):
         self.socket.close()
+
+    def listen_to_server(self):
+        self.protocol.read_packets(
+            self.socket, self.process_operation_curry(std_out_lock))
 
     def _get_prompt(self):
         command_line_prefix = f'{self.username} >' if self.username else '>'
@@ -61,45 +65,45 @@ class Client:
         username = input('Enter username: ')
         # Check valid username, only letters and numbers
         if username.strip().isalnum() and 5 <= len(username) <= 20:
-            message = protocol.protocol_instance.encode(
+            message = self.protocol.encode(
                 action, self.message_counter, {'username': username})
             self.message_counter += 1
-            protocol.protocol_instance.send(self.socket, message)
+            self.protocol.send(self.socket, message)
         else:
             atomic_print(
                 std_out_lock, 'Invalid username. Username must be between 5 and 20 characters and only contain letters and numbers.')
 
     def _list_accounts(self):
         query = input('Enter query: ')
-        message = protocol.protocol_instance.encode(
+        message = self.protocol.encode(
             'LIST_ACCOUNTS', self.message_counter, {'query': query})
         self.message_counter += 1
-        protocol.protocol_instance.send(self.socket, message)
+        self.protocol.send(self.socket, message)
 
     def _send_message(self):
         user = input('Enter recipient username: ')
         user_msg = input('Enter message: ')
-        message = protocol.protocol_instance.encode(
+        message = self.protocol.encode(
             'SEND_MESSAGE', self.message_counter, {'recipient': user, 'message': user_msg})
         self.message_counter += 1
-        protocol.protocol_instance.send(self.socket, message)
+        self.protocol.send(self.socket, message)
 
     def _logoff(self):
-        message = protocol.protocol_instance.encode(
+        message = self.protocol.encode(
             'LOG_OFF', self.message_counter)
         self.message_counter += 1
-        protocol.protocol_instance.send(self.socket, message)
+        self.protocol.send(self.socket, message)
 
     def _delete_account(self):
-        message = protocol.protocol_instance.encode(
+        message = self.protocol.encode(
             'DELETE_ACCOUNT', self.message_counter)
         self.message_counter += 1
-        protocol.protocol_instance.send(self.socket, message)
+        self.protocol.send(self.socket, message)
 
     def process_operation_curry(self, out_lock):
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
             operation_code = metadata.operation_code.value
-            args = protocol.protocol_instance.parse_data(operation_code, msg)
+            args = self.protocol.parse_data(operation_code, msg)
             atomic_print(out_lock, '')
             match operation_code:
                 case 2:  # Create account response
@@ -142,11 +146,6 @@ class Client:
                         out_lock, f"Message from {args['sender']}: {args['message']} \n\n{self._get_prompt()}")
                     # atomic_print(out_lock, self._get_prompt(), end=' ')
         return process_operation
-
-
-def listen_to_server(client: Client):
-    protocol.protocol_instance.read_packets(
-        client.socket, client.process_operation_curry(std_out_lock))
 
 
 def atomic_print(lock, msg, end=None):
