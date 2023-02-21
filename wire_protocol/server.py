@@ -52,6 +52,119 @@ class Server:
         ret = recipient in self.account_list
         self.account_list_lock.release()
         return ret
+    
+    def process_create_account(self, args, client_socket, socket_lock):
+        account_name = args["username"]
+        if self.atomicIsLoggedIn(client_socket, socket_lock):
+            response = {'status': 'Error: User can\'t create an account while logged in.', 'username': account_name}
+        else:
+            self.account_list_lock.acquire()
+            if (account_name in self.account_list):
+                self.account_list_lock.release()
+                response = {'status': 'Error: Account already exists.', 'username': account_name}
+            else:
+                self.account_list.append(account_name)
+                self.atomicLogIn(client_socket, socket_lock,
+                                    account_name)  # accountLock > login
+                # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
+                self.account_list_lock.release()
+                print("Account created: " + account_name)
+                response =  {'status': 'Success', 'username': account_name}
+        return response
+    
+    def process_list_accounts(self, args):
+        try:
+            pattern = re.compile(
+                fr"{args['query']}", flags=re.IGNORECASE)
+            self.account_list_lock.acquire()
+            result = []
+            for account in self.account_list:
+                if pattern.match(account):
+                    result.append(account)
+            self.account_list_lock.release()
+            response = {'status': 'Success', 'accounts': "\n".join(result)}
+        except:
+            response = {'status': 'Error: regex is malformed.', 'accounts': ''}
+        finally:
+            return response
+        
+    def process_send_msg(self, args, client_socket, socket_lock):
+        self.logged_in_lock.acquire()
+        if (not (client_socket, socket_lock) in self.logged_in.values()):
+            self.logged_in_lock.release()
+            response =  {'status': 'Error: Need to be logged in to send a message.'}
+        else:
+            username = [k for k, v in self.logged_in.items() if v == (
+                client_socket, socket_lock)][0]
+            self.logged_in_lock.release()
+            recipient = args["recipient"]
+            message = args["message"]
+            print("sending message", recipient, message)
+            self.account_list_lock.acquire()
+            if recipient not in self.account_list:
+                self.account_list_lock.release()
+                response = {'status': 'Error: The recipient of the message does not exist.'}
+            else:
+                self.undelivered_msg_lock.acquire()
+                if recipient in self.undelivered_msg:
+                    self.undelivered_msg[recipient] += [
+                        (username, message)]
+                else:
+                    self.undelivered_msg[recipient] = [
+                        (username, message)]
+                self.undelivered_msg_lock.release()
+                self.account_list_lock.release()
+                response ={'status': 'Success'}
+        return response
+            
+    def process_delete_account(self, client_socket, socket_lock):
+        self.logged_in_lock.acquire()
+        if ((client_socket, socket_lock) in self.logged_in.values()):
+            username = [k for k, v in self.logged_in.items() if v == (
+                client_socket, socket_lock)][0]
+            self.logged_in.pop(username)
+            self.logged_in_lock.release()
+            self.account_list_lock.acquire()
+            self.account_list.remove(username)
+            self.account_list_lock.release()
+            response =  {'status': 'Success'}
+        else:
+            self.logged_in_lock.release()
+            response = {'status': 'Error: Need to be logged in to delete your account.'}
+        return response
+
+    def process_login(self, args, client_socket, socket_lock):
+        self.logged_in_lock.acquire()
+        if ((client_socket, socket_lock) in self.logged_in.values()):
+            self.logged_in_lock.release()
+            response =  {'status': 'Error: Already logged into an account, please log off first.', 'username': ''}
+        else:
+            account_name = args['username']
+            if (not self.atomicIsAccountCreated(account_name)):
+                self.logged_in_lock.release()
+                response = {'status': 'Error: Account does not exist.', 'username': account_name}
+            elif (account_name in self.logged_in.keys()):
+                self.logged_in_lock.release()
+                response = {'status': 'Error: Someone else is logged into that account.', 'username': account_name}
+            else:
+                self.logged_in[account_name] = (
+                    client_socket, socket_lock)
+                self.logged_in_lock.release()
+                response = {'status': 'Success', 'username': account_name}
+        return response
+    
+    def process_logoff(self, client_socket, socket_lock):
+        self.logged_in_lock.acquire()
+        if ((client_socket, socket_lock) in self.logged_in.values()):
+            username = [k for k, v in self.logged_in.items() if v == (
+                client_socket, socket_lock)][0]
+            self.logged_in.pop(username)
+            self.logged_in_lock.release()
+            response =  {'status': 'Success'}
+        else:
+            self.logged_in_lock.release()
+            response = {'status': 'Error: Need to be logged in to log out of your account.'}
+        return response
 
     def process_operation_curried(self, socket_lock):
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
@@ -60,153 +173,21 @@ class Server:
             args = self.protocol.parse_data(operation_code, msg)
             match operation_code:
                 case 1:  # CREATE_ACCOUNT
-                    account_name = args["username"]
-                    if self.atomicIsLoggedIn(client_socket, socket_lock):
-                        response = self.protocol.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                            'status': 'Error: User can\'t create an account while logged in.', 'username': account_name})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    else:
-                        self.account_list_lock.acquire()
-                        if (account_name in self.account_list):
-                            self.account_list_lock.release()
-                            response = self.protocol.encode('CREATE_ACCOUNT_RESPONSE', id_accum, {
-                                'status': 'Error: Account already exists.', 'username': account_name})
-                            self.protocol.send(
-                                client_socket, response, socket_lock)
-                        else:
-                            self.account_list.append(account_name)
-                            self.atomicLogIn(client_socket, socket_lock,
-                                             account_name)  # accountLock > login
-                            # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
-                            self.account_list_lock.release()
-                            print("Account created: " + account_name)
-                            response = self.protocol.encode(
-                                'CREATE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success', 'username': account_name})
-                            self.protocol.send(
-                                client_socket, response, socket_lock)
+                    response = self.protocol.encode('CREATE_ACCOUNT_RESPONSE', id_accum, self.process_create_account(args, client_socket, socket_lock))
                 case 3:  # LIST ACCOUNTS
-                    try:
-                        pattern = re.compile(
-                            fr"{args['query']}", flags=re.IGNORECASE)
-                        self.account_list_lock.acquire()
-                        result = []
-                        for account in self.account_list:
-                            if pattern.match(account):
-                                result.append(account)
-                        self.account_list_lock.release()
-                        response = self.protocol.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                            'status': 'Success', 'accounts': "\n".join(result)})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    except:
-                        response = self.protocol.encode('LIST_ACCOUNTS_RESPONSE', id_accum, {
-                            'status': 'Error: regex is malformed.', 'accounts': ''})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-
+                    response = self.protocol.encode('LIST_ACCOUNTS_RESPONSE', id_accum, self.process_list_accounts(args))
                 case 5:  # SENDMSG
                     # in this case we want to add to undelivered messages, which the server iterator will figure out i think
                     # here we check the person sending is logged in and the recipient account has been created
-                    self.logged_in_lock.acquire()
-                    if (not (client_socket, socket_lock) in self.logged_in.values()):
-                        self.logged_in_lock.release()
-                        response = self.protocol.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                            'status': 'Error: Need to be logged in to send a message.'})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    else:
-                        username = [k for k, v in self.logged_in.items() if v == (
-                            client_socket, socket_lock)][0]
-                        self.logged_in_lock.release()
-                        recipient = args["recipient"]
-                        message = args["message"]
-                        print("sending message", recipient, message)
-                        self.account_list_lock.acquire()
-                        if recipient not in self.account_list:
-                            self.account_list_lock.release()
-                            response = self.protocol.encode('SEND_MESSAGE_RESPONSE', id_accum, {
-                                'status': 'Error: The recipient of the message does not exist.'})
-                            self.protocol.send(
-                                client_socket, response, socket_lock)
-                        else:
-                            self.undelivered_msg_lock.acquire()
-                            if recipient in self.undelivered_msg:
-                                self.undelivered_msg[recipient] += [
-                                    (username, message)]
-                            else:
-                                self.undelivered_msg[recipient] = [
-                                    (username, message)]
-                            self.undelivered_msg_lock.release()
-                            self.account_list_lock.release()  # ACCOUNT LIST > UNDELIVERED MSG
-
+                    response = self.protocol.encode('SEND_MESSAGE_RESPONSE', id_accum, self.process_send_msg(args, client_socket, socket_lock))
                 case 7:  # DELETE
-                    self.logged_in_lock.acquire()
-                    if ((client_socket, socket_lock) in self.logged_in.values()):
-                        username = [k for k, v in self.logged_in.items() if v == (
-                            client_socket, socket_lock)][0]
-                        self.logged_in.pop(username)
-                        self.logged_in_lock.release()
-                        self.account_list_lock.acquire()
-                        self.account_list.remove(username)
-                        self.account_list_lock.release()
-                        response = self.protocol.encode(
-                            'DELETE_ACCOUNT_RESPONSE', id_accum, {'status': 'Success'})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    else:
-                        self.logged_in_lock.release()
-                        response = self.protocol.encode('DELETE_ACCOUNT_RESPONSE', id_accum, {
-                            'status': 'Error: Need to be logged in to delete your account.'})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
+                    response = self.protocol.encode('DELETE_ACCOUNT_RESPONSE', id_accum, self.process_delete_account(client_socket, socket_lock))
                 case 9:  # LOGIN
-                    self.logged_in_lock.acquire()
-                    if ((client_socket, socket_lock) in self.logged_in.values()):
-                        self.logged_in_lock.release()
-                        response = self.protocol.encode('LOG_IN_RESPONSE', id_accum, {
-                            'status': 'Error: Already logged into an account, please log off first.', 'username': ''})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    else:
-                        account_name = args['username']
-                        if (not self.atomicIsAccountCreated(account_name)):
-                            self.logged_in_lock.release()
-                            response = self.protocol.encode(
-                                'LOG_IN_RESPONSE', id_accum, {'status': 'Error: Account does not exist.', 'username': account_name})
-                            self.protocol.send(
-                                client_socket, response, socket_lock)
-                        elif (account_name in self.logged_in.keys()):
-                            self.logged_in_lock.release()
-                            response = self.protocol.encode('LOG_IN_RESPONSE', id_accum, {
-                                'status': 'Error: Someone else is logged into that account.', 'username': account_name})
-                            self.protocol.send(
-                                client_socket, response, socket_lock)
-                        else:
-                            self.logged_in[account_name] = (
-                                client_socket, socket_lock)
-                            self.logged_in_lock.release()
-                            response = self.protocol.encode(
-                                'LOG_IN_RESPONSE', id_accum, {'status': 'Success', 'username': account_name})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
+                    response = self.protocol.encode('LOG_IN_RESPONSE', id_accum, self.process_login(args, client_socket, socket_lock))
                 case 11:  # LOGOFF
-                    self.logged_in_lock.acquire()
-                    if ((client_socket, socket_lock) in self.logged_in.values()):
-                        username = [k for k, v in self.logged_in.items() if v == (
-                            client_socket, socket_lock)][0]
-                        self.logged_in.pop(username)
-                        self.logged_in_lock.release()
-                        response = self.protocol.encode(
-                            'LOG_OFF_RESPONSE', id_accum, {'status': 'Success'})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
-                    else:
-                        self.logged_in_lock.release()
-                        response = self.protocol.encode('LOG_OFF_RESPONSE', id_accum, {
-                            'status': 'Error: Need to be logged in to log out of your account.'})
-                        self.protocol.send(
-                            client_socket, response, socket_lock)
+                    response = self.protocol.encode('LOG_OFF_RESPONSE', id_accum, self.process_logoff(client_socket, socket_lock))
+            if not response is None:
+                self.protocol.send(client_socket, response, socket_lock)
         return process_operation
 
     def handle_undelivered_messages(self):
@@ -225,7 +206,6 @@ class Server:
                         undelivered_messages.append((sender, msg))
                     self.msg_counter = self.msg_counter + 1
                 self.undelivered_msg[recipient] = undelivered_messages
-
             self.logged_in_lock.release()
         self.undelivered_msg_lock.release()
 
