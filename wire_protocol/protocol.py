@@ -257,7 +257,7 @@ class Protocol:
             received_data = client.recv(MAX_PACKET_SIZE)
             if (int.from_bytes(received_data, 'big') <= 0):
                 # Socket disconnected
-                return
+                return 0
             curr_msg_to_parse = left_over_packet + received_data
             if (len(curr_msg_to_parse) < METADATA_LENGTH):
                 left_over_packet = curr_msg_to_parse

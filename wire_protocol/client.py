@@ -21,7 +21,7 @@ class Client:
             self.socket.connect((self.server_host, self.port))
 
             # Create a thread to listen continuously listen to server and respond to server messages
-            thread = threading.Thread(target=self.listen_to_server)
+            thread = threading.Thread(target=self.listen_to_server, daemon=True)
             thread.start()
             print('Connected to server')
         except:

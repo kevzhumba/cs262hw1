@@ -3,7 +3,7 @@ import socket
 import threading
 import protocol
 
-HOST = '127.0.0.1'
+HOST = ''
 PORT = 6000
 
 if __name__ == '__main__':
@@ -13,4 +13,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         server.disconnect()
         print('Server dropped')
+        
 
