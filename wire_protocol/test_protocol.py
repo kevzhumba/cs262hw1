@@ -14,14 +14,16 @@ METADATA_SIZES = {
 
 METADATA_LENGTH = sum(METADATA_SIZES.values())
 
+
 class ProtocolTest(unittest.TestCase):
     def setUp(self):
-        self.protocol = protocol.protocol_instance    
+        self.protocol = protocol.protocol_instance
 
     def test_read_packets(self):
-        encoding = self.protocol.encode( 'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
+        encoding = self.protocol.encode(
+            'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
         client = MagicMock()
-        processFn = MagicMock(return_value = True)
+        processFn = MagicMock(return_value=True)
         md = self.protocol.parse_metadata(encoding)
         m = MagicMock()
         zero = 0
@@ -29,43 +31,51 @@ class ProtocolTest(unittest.TestCase):
         client.recv = m
         self.protocol.read_packets(client, processFn)
         curr_payload_size = md.payload_size
-        packet_to_parse = encoding[METADATA_LENGTH: curr_payload_size + METADATA_LENGTH]
+        packet_to_parse = encoding[METADATA_LENGTH:
+                                   curr_payload_size + METADATA_LENGTH]
         incomplete_msg = packet_to_parse.decode(
-                                'ascii')
-        processFn.assert_called_with(client, unittest.mock.ANY, incomplete_msg[:-1], 0)
+            'ascii')
+        processFn.assert_called_with(
+            client, unittest.mock.ANY, incomplete_msg[:-1], 0)
 
-    def test_read_packets_broken_up(self): 
-        encoding = self.protocol.encode( 'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
+    def test_read_packets_broken_up(self):
+        encoding = self.protocol.encode(
+            'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
         client = MagicMock()
-        processFn = MagicMock(return_value = True)
+        processFn = MagicMock(return_value=True)
         md = self.protocol.parse_metadata(encoding)
         m = MagicMock()
         zero = 0
-        m.side_effect = [encoding[:len(encoding)//2], encoding[len(encoding)//2:], zero.to_bytes(2, 'big')]
+        m.side_effect = [
+            encoding[:len(encoding)//2], encoding[len(encoding)//2:], zero.to_bytes(2, 'big')]
         client.recv = m
         self.protocol.read_packets(client, processFn)
         curr_payload_size = md.payload_size
-        packet_to_parse = encoding[METADATA_LENGTH: curr_payload_size + METADATA_LENGTH]
+        packet_to_parse = encoding[METADATA_LENGTH:
+                                   curr_payload_size + METADATA_LENGTH]
         incomplete_msg = packet_to_parse.decode(
-                                'ascii')
-        processFn.assert_called_with(client, unittest.mock.ANY, incomplete_msg[:-1], 0)
+            'ascii')
+        processFn.assert_called_with(
+            client, unittest.mock.ANY, incomplete_msg[:-1], 0)
 
     def test_parse_data(self):
         data = 'recipient=kevin\rmessage=hello'
         parse = self.protocol.parse_data(5, data)
         self.assertEqual(parse['recipient'], 'kevin')
         self.assertEqual(parse['message'], 'hello')
-    
+
     def test_parse_metadata(self):
-        encoding = self.protocol.encode( 'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
+        encoding = self.protocol.encode(
+            'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
         md = self.protocol.parse_metadata(encoding)
         self.assertEqual(md.header_length, 8)
         self.assertEqual(md.message_id, 0)
         self.assertEqual(md.message_size, 15)
-        self.assertEqual(md.operation_code, protocol.OperationCode.CREATE_ACCOUNT)
+        self.assertEqual(md.operation_code,
+                         protocol.OperationCode.CREATE_ACCOUNT)
         self.assertEqual(md.payload_size, 15)
         self.assertEqual(md.version, 1)
-         
+
 
 if __name__ == '__main__':
-    unittest.main()        
+    unittest.main()
