@@ -3,12 +3,13 @@ import threading
 from typing import Literal
 from time import sleep
 import chat_service_pb2
-import chat_service_pb2_grpc
+
 
 std_out_lock = threading.Lock()
 
 
 def atomic_print(lock, msg, end=None):
+    # Function for printing to stdout in a thread-safe manner
     lock.acquire()
     print(msg, end=end)
     lock.release()
@@ -26,16 +27,19 @@ class Client:
             self._fetch_and_print_messages()
 
     def _fetch_and_print_messages(self):
+        """Fetches available messages from the server and prints them to stdout."""
         try:
             got_message = False
             for message in self.stub.GetMessages(chat_service_pb2.GetMessagesRequest()):
                 atomic_print(
                     std_out_lock, f"\nMessage from {message.sender}: {message.message}")
                 got_message = True
+            # Print the prompt again if we got a message
             if got_message:
                 atomic_print(std_out_lock, self._get_prompt())
             sleep(0.05)
         except grpc.RpcError as e:
+            # Some grpc error occurred, quietly wait a second and try again
             sleep(1)
 
     def _get_prompt(self):
@@ -43,6 +47,10 @@ class Client:
         return f"{command_line_prefix} Enter command (type 'help' for list of commands): "
 
     def run(self):
+        """
+        Run the core user interface loop. 
+        This starts a new thread for fetching messages from the server and then enters a loop for user input.
+        """
         # Start listening for messages in a new thread
         self.listen_thread = threading.Thread(
             target=self.listen_for_messages, daemon=True)
@@ -72,21 +80,28 @@ class Client:
                         atomic_print(std_out_lock, 'Invalid command')
                 sleep(0.2)
             except KeyboardInterrupt:
+                # Gracefully stop threads and log out.
                 self.listen_for_messages_flag = False
                 self._logoff(output_message=False)
                 return
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.UNAVAILABLE:
+                    # Connection error, kill the client.
                     self.listen_for_messages_flag = False
                     atomic_print(
                         std_out_lock, 'Server is unavailable. Please try again later.')
                     return
                 else:
+                    # Not a connection error, log out instead.
                     self._logoff(output_message=False)
                     atomic_print(
                         std_out_lock, 'An error occurred and you have been logged out.')
 
     def _create_account_or_log_in(self, action: Literal['CREATE_ACCOUNT', 'LOG_IN']):
+        """
+        Ask for username to create an account or log in. 
+        Check basic validity of username and send appropriate request to server.
+        """
         username = input('Enter username: ')
         # Check valid username, only letters and numbers
         if username.strip().isalnum() and 5 <= len(username) <= 20:
@@ -96,6 +111,7 @@ class Client:
             else:
                 response = self.stub.LogIn(
                     chat_service_pb2.LogInRequest(username=username))
+
             if response.status == 'Success':
                 self.username = username
                 atomic_print(std_out_lock, f'Success! Logged in as {username}')
@@ -106,6 +122,7 @@ class Client:
                 std_out_lock, 'Invalid username. Username must be between 5 and 20 characters and only contain letters and numbers.')
 
     def _list_accounts(self):
+        """Ask for a query string and send a request to the server to list accounts matching the query."""
         query = input('Enter query: ')
         response = self.stub.ListAccounts(
             chat_service_pb2.ListAccountsRequest(query=query))
@@ -116,6 +133,7 @@ class Client:
             atomic_print(std_out_lock, response.status)
 
     def _send_message(self):
+        """Ask for a recipient username and message and send a request to the server to send the message."""
         user = input('Enter recipient username: ')
         user_msg = input('Enter message: ')
         response = self.stub.SendMessage(
@@ -126,6 +144,7 @@ class Client:
             atomic_print(std_out_lock, response.status)
 
     def _logoff(self, output_message=True):
+        """Send a request to the server to log off."""
         response = self.stub.LogOff(chat_service_pb2.LogOffRequest())
         if response.status == "Success":
             self.username = None
@@ -136,6 +155,7 @@ class Client:
             atomic_print(std_out_lock, msg)
 
     def _delete_account(self):
+        """Send a request to the server to delete the account."""
         response = self.stub.DeleteAccount(
             chat_service_pb2.DeleteAccountRequest())
         if response.status == "Success":
