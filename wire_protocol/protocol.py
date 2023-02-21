@@ -16,7 +16,7 @@ METADATA_SIZES = {
 METADATA_LENGTH = sum(METADATA_SIZES.values())
 MAX_PACKET_SIZE = 2048
 MAX_PAYLOAD_SIZE = MAX_PACKET_SIZE - METADATA_LENGTH
-VERSION = 1
+VERSION = 3
 
 
 class OperationCode(Enum):
@@ -92,7 +92,21 @@ class Protocol:
             self.metadata_sizes['payload_size'] + \
             self.metadata_sizes['message_id']
 
-    def encode(self, operation: str, message_id: int, operation_args={}) -> List[bytes]:
+    def encode(self, operation: OperationCode, message_id: int, operation_args={}) -> List[bytes]:
+        """Encode an operation into a list of byte packets to be sent to the server.
+
+        Args:
+            operation (OperationCode): Enum value of the operation to be encoded.
+            message_id (int): The message ID of the resulting message to send.
+            operation_args (dict, optional): Dict of key-value arguments for the operation. 
+                Refer to OPERATION_ARGS for what arguments are required for each operation. Defaults to {}.
+
+        Raises:
+            ValueError: Missing required arguments for target operation.
+
+        Returns:
+            List[bytes]: List of bytes representing packets to be sent to the server.
+        """
         # Check for necessary arguments
         if set(OPERATION_ARGS[operation]).intersection(set(operation_args.keys())) != set(OPERATION_ARGS[operation]):
             raise ValueError(
@@ -137,22 +151,42 @@ class Protocol:
     def _encode_data(self, data: str) -> bytes:
         return data.encode('ascii')
 
-    def send(self, client_socket, msgs: List[bytes], socket_lock=None) -> bool:
-        # Takes in a list of encoded messages and sends them to the client_socket
-        for msg in msgs:
-            status = self._send_one_msg(
-                client_socket, msg, socket_lock)
+    def send(self, client_socket, message: List[bytes], socket_lock=None) -> bool:
+        """Send a list of encoded packets to the client_socket
+
+        Args:
+            client_socket (socket.socket): The socket to send the packets to
+            message (List[bytes]): List of bytes to send to the client_socket, each representing a packet
+            socket_lock (threading.Lock, optional): Thread lock for client if needed. Defaults to None.
+
+        Returns:
+            bool: True if all packets were sent successfully, False otherwise
+        """
+        for packet in message:
+            status = self._send_one_packet(
+                client_socket, packet, socket_lock)
             if not status:
                 return False
         return True
 
-    def _send_one_msg(self, client_socket, msg: bytes, socket_lock=None) -> bool:
+    def _send_one_packet(self, client_socket, packet: bytes, socket_lock=None) -> bool:
+        """Send a single of encoded packet to the client_socket
+
+        Args:
+            client_socket (socket.socket): The socket to send the packets to
+            packet (bytes): Bytes to send to the client_socket, representing a packet
+            socket_lock (threading.Lock, optional): Thread lock for client if needed. Defaults to None.
+
+        Returns:
+            bool: True if the packet was sent successfully, False otherwise
+        """
         if socket_lock is not None:
             socket_lock.acquire()
         total_sent = 0
-        while total_sent < len(msg):
+        # Send the packet in chunks until all bytes are sent
+        while total_sent < len(packet):
             try:
-                bytes_sent = client_socket.send(msg, MAX_PACKET_SIZE)
+                bytes_sent = client_socket.send(packet, MAX_PACKET_SIZE)
                 if bytes_sent == 0:
                     # Socket connection broken
                     if socket_lock is not None:
