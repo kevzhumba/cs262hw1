@@ -5,6 +5,14 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Optional as _Op
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ChatMessage(_message.Message):
+    __slots__ = ["message", "sender"]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SENDER_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    sender: str
+    def __init__(self, sender: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
 class CreateAccountRequest(_message.Message):
     __slots__ = ["username"]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
@@ -28,6 +36,10 @@ class DeleteAccountResponse(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class GetMessagesRequest(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
 
 class ListAccountsRequest(_message.Message):
     __slots__ = ["query"]
