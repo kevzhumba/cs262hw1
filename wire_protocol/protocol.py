@@ -95,6 +95,8 @@ class Protocol:
     def encode(self, operation: OperationCode, message_id: int, operation_args={}) -> List[bytes]:
         """Encode an operation into a list of byte packets to be sent to the server.
 
+        This function just joins the keyword arguments into a data string and passes it to _encode
+
         Args:
             operation (OperationCode): Enum value of the operation to be encoded.
             message_id (int): The message ID of the resulting message to send.
@@ -121,6 +123,18 @@ class Protocol:
         return self._encode(OperationCode[operation].value, message_id, data)
 
     def _encode(self, operation: int, message_id: int, data: str) -> List[bytes]:
+        """Encode an operation into a list of byte packets to be sent to the server containing the metadata and data.
+
+        The encoding scheme is described in the project README.
+
+        Args:
+            operation (int): Operation code of the operation to be encoded.
+            message_id (int): The message ID of the resulting message to send.
+            data (str): String of data to be encoded.
+
+        Returns:
+            List[bytes]: List of bytes representing packets to be sent to the server.
+        """
         # Encode data
         encoded_data = self._encode_data(data)
 
@@ -136,6 +150,7 @@ class Protocol:
         # Split into payloads of MAX_PAYLOAD_SIZE bytes, all with same common metadata
         for i in range(0, len(encoded_data), MAX_PAYLOAD_SIZE):
             payload = encoded_data[i:i+MAX_PAYLOAD_SIZE]
+            # Calculate payload size for this specific payload
             payload_bytes = bytes + \
                 self._encode_component('payload_size', len(payload))
             payload_bytes.extend(
@@ -225,9 +240,9 @@ class Protocol:
         return dict(map(lambda x: tuple(x.split("=", 1)), kv_pairs))
 
     def parse_metadata(self, bytes: bytes) -> Metadata:
-        '''
+        """
             Takes in a bytes object and parses the metadata at the beginning according to the specifications.
-        '''
+        """
         return Metadata(bytes[0:1], bytes[1:2], bytes[2:3], bytes[3:6], bytes[6:8], bytes[8:10])
 
     def read_packets(self, client: socket.socket, message_processor: Callable) -> None:
