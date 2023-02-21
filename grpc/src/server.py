@@ -3,6 +3,7 @@ from concurrent import futures
 from time import sleep
 import threading
 import re
+from collections import defaultdict
 
 import grpc
 import chat_service_pb2
@@ -21,7 +22,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
         self.logged_in_lock = threading.Lock()
 
         # Map of recipient username to list of (sender, message) for that recipient
-        self.undelivered_msg = {}
+        self.undelivered_msg = defaultdict(list)
         self.undelivered_msg_lock = threading.Lock()
 
     def _atomicIsLoggedIn(self, client_socket):
@@ -44,7 +45,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
     def CreateAccount(self, request, context):
         username = request.username
         client_socket = context.peer()
-        if self.atomicIsLoggedIn(client_socket):
+        if self._atomicIsLoggedIn(client_socket):
             status = 'Error: User can\'t create an account while logged in.'
         else:
             self.account_list_lock.acquire()
@@ -54,7 +55,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             else:
                 self.account_list.append(username)
                 # accountLock > login
-                self.atomicLogIn(client_socket, username)
+                self._atomicLogIn(client_socket, username)
                 # if we release the lock earlier, someone else can create the same acccount and try to log in while we wait for the log in lock
                 self.account_list_lock.release()
                 print("Account created: ", username)
@@ -93,34 +94,40 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.logged_in_lock.release()
             recipient = request.recipient
             message = request.message
-            print(f"Sending message from {username} to {recipient}")
             self.account_list_lock.acquire()
             if recipient not in self.account_list:
                 self.account_list_lock.release()
                 status = 'Error: The recipient of the message does not exist.'
             else:
                 self.undelivered_msg_lock.acquire()
-                if recipient in self.undelivered_msg:
-                    self.undelivered_msg[recipient] += [
-                        (username, message)]
-                else:
-                    self.undelivered_msg[recipient] = [
-                        (username, message)]
+                self.undelivered_msg[recipient].append((username, message))
                 self.undelivered_msg_lock.release()
-                self.account_list_lock.release()  # ACCOUNT LIST > UNDELIVERED MSG
+                # ACCOUNT LIST > UNDELIVERED MSG)
+                self.account_list_lock.release()
+                status = 'Success'
+                print(f"Queued message from {username} to {recipient}")
 
         return chat_service_pb2.SendMessageResponse(status=status)
 
     def GetMessages(self, request, context):
         client_socket = context.peer()
+        self.logged_in_lock.acquire()
         if client_socket in self.logged_in.values():
             username = [k for k, v in self.logged_in.items() if v ==
                         client_socket][0]
-            self.undelivered_msg_lock.acquire()
-            for (sender, msg) in self.undelivered_msg[username]:
-                yield chat_service_pb2.ChatMessage(sender=sender, message=msg)
-        else:
-            raise ConnectionError('User not logged in.')
+            while True:
+                deliver_msg = False
+                self.undelivered_msg_lock.acquire()
+                if len(self.undelivered_msg[username]):
+                    deliver_msg = True
+                    sender, msg = self.undelivered_msg[username].pop(0)
+                self.undelivered_msg_lock.release()
+                if deliver_msg:
+                    print(f"Sending messages to {username}")
+                    yield chat_service_pb2.ChatMessage(sender=sender, message=msg)
+                else:
+                    break
+        self.logged_in_lock.release()
 
     def DeleteAccount(self, request, context):
         self.logged_in_lock.acquire()
@@ -134,6 +141,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.account_list.remove(username)
             self.account_list_lock.release()
             status = 'Success'
+            print("Account deleted: ", username)
         else:
             self.logged_in_lock.release()
             status = 'Error: Need to be logged in to delete your account.'
@@ -148,7 +156,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.logged_in_lock.release()
             status = 'Error: Already logged into an account, please log off first.'
         else:
-            if (not self.atomicIsAccountCreated(username)):
+            if (not self._atomicIsAccountCreated(username)):
                 self.logged_in_lock.release()
                 status = 'Error: Account does not exist.'
             elif username in self.logged_in.keys():
@@ -158,6 +166,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
                 self.logged_in[username] = client_socket
                 self.logged_in_lock.release()
                 status = 'Success'
+                print("Logged in: ", username)
 
         return chat_service_pb2.LogInResponse(status=status, username=username)
 
@@ -170,6 +179,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.logged_in.pop(username)
             self.logged_in_lock.release()
             status = 'Success'
+            print("Logged off: ", username)
         else:
             self.logged_in_lock.release()
             status = 'Error: Need to be logged in to log out of your account.'
