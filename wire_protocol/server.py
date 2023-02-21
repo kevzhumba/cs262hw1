@@ -23,8 +23,10 @@ class Server:
         self.socket.close()
 
     def handle_client(self, client, socket_lock):
-        self.protocol.read_packets(
+        value = self.protocol.read_packets(
             client, self.process_operation_curried(socket_lock))
+        if (value == None):
+            client.close()
         self.logged_in_lock.acquire()
         username = [k for k, v in self.logged_in.items() if v == (
             client, socket_lock)]
@@ -224,7 +226,7 @@ class Server:
         server_socket.listen()
 
         message_delivery_thread = threading.Thread(
-            target=self.send_messages)
+            target=self.send_messages, daemon=True)
         message_delivery_thread.start()
         while(True):
             try:
@@ -232,7 +234,7 @@ class Server:
                 clientsocket.setblocking(1)
                 lock = threading.Lock()
                 thread = threading.Thread(
-                    target=self.handle_client, args=(clientsocket, lock, ))
+                    target=self.handle_client, args=(clientsocket, lock, ), daemon=True)
                 thread.start()
                 print('Connection created with:', addr)
             except BlockingIOError:
