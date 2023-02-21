@@ -23,17 +23,20 @@ class Client:
 
     def listen_for_messages(self):
         while self.listen_for_messages_flag:
-            try:
-                got_message = False
-                for message in self.stub.GetMessages(chat_service_pb2.GetMessagesRequest()):
-                    atomic_print(
-                        std_out_lock, f"\nMessage from {message.sender}: {message.message}")
-                    got_message = True
-                if got_message:
-                    atomic_print(std_out_lock, self._get_prompt())
-                sleep(0.05)
-            except grpc.RpcError as e:
-                sleep(1)
+            self._fetch_and_print_messages()
+
+    def _fetch_and_print_messages(self):
+        try:
+            got_message = False
+            for message in self.stub.GetMessages(chat_service_pb2.GetMessagesRequest()):
+                atomic_print(
+                    std_out_lock, f"\nMessage from {message.sender}: {message.message}")
+                got_message = True
+            if got_message:
+                atomic_print(std_out_lock, self._get_prompt())
+            sleep(0.05)
+        except grpc.RpcError as e:
+            sleep(1)
 
     def _get_prompt(self):
         command_line_prefix = f'{self.username} >' if self.username else '>'
