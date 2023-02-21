@@ -137,37 +137,40 @@ class Protocol:
     def _encode_data(self, data: str) -> bytes:
         return data.encode('ascii')
 
-    def send(self, client_socket, msgs: List[bytes], socket_lock=None):
+    def send(self, client_socket, msgs: List[bytes], socket_lock=None) -> bool:
         # Takes in a list of encoded messages and sends them to the client_socket
         for msg in msgs:
-            self._send_one_msg(client_socket, msg, socket_lock)
-
-        # TODO - should return true if entire message was sent, otherwise false
+            status = self._send_one_msg(
+                client_socket, msg, socket_lock)
+            if not status:
+                return False
         return True
 
-    def _send_one_msg(self, client_socket, msg: bytes, socket_lock=None):
+    def _send_one_msg(self, client_socket, msg: bytes, socket_lock=None) -> bool:
         if socket_lock is not None:
             socket_lock.acquire()
         total_sent = 0
         while total_sent < len(msg):
             try:
                 bytes_sent = client_socket.send(msg, MAX_PACKET_SIZE)
-                # TODO - debug flag
-                # print(f"Sent {bytes_sent} bytes")
-                # if (bytes_sent == 0):
-                #     # TODO figure out how this works for nonblocking sockets
-                #     if socket_lock is not None:
-                #         socket_lock.release()
-                #     raise RuntimeError("socket connection broken")
-                total_sent += bytes_sent
-            except socket.error as e:
-                if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
+                if bytes_sent == 0:
+                    # Socket connection broken
                     if socket_lock is not None:
                         socket_lock.release()
-                    raise e
-                print(
-                    f'Blocking with {len(msg)-total_sent} bytes left to send')
+                    return False
+                total_sent += bytes_sent
+            except socket.error as e:
+                # For nonblocking sockets, EAGAIN and EWOULDBLOCK are raised when there is no data to write
+                # so we just need to wait for more data This code actually will never run because we are now using
+                # blocking sockets.
+                if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
+                    # Socket connection broken, unknown error
+                    if socket_lock is not None:
+                        socket_lock.release()
+                    return False
+                # Wait for client_socket until ready for writing
                 select.select([], [client_socket], [])
+        return True
 
         if socket_lock is not None:
             socket_lock.release()
