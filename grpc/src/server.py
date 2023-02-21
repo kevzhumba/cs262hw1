@@ -9,7 +9,7 @@ import grpc
 import chat_service_pb2
 import chat_service_pb2_grpc
 
-HOST = '127.0.0.1'
+HOST = '[::]'
 PORT = 6000
 
 

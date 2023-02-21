@@ -27,8 +27,9 @@ class Server:
             client, self.process_operation_curried(socket_lock))
         self.logged_in_lock.acquire()
         username = [k for k, v in self.logged_in.items() if v == (
-            client, socket_lock)][0]
-        self.logged_in.pop(username)
+            client, socket_lock)]
+        if (len(username) > 0):
+            self.logged_in.pop(username[0])
         self.logged_in_lock.release()
         print("ENDING CLIENT")
 
