@@ -20,6 +20,7 @@ class Client:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server_host, self.port))
 
+            # Create a thread to listen continuously listen to server and respond to server messages
             thread = threading.Thread(target=self.listen_to_server)
             thread.start()
             print('Connected to server')
@@ -38,6 +39,7 @@ class Client:
         return f"{command_line_prefix} Enter command (type 'help' for list of commands): "
 
     def run(self):
+        # Core user interface loop
         while True:
             user_input = input(self._get_prompt())
             user_input = user_input.lower().strip()
@@ -74,6 +76,7 @@ class Client:
                 std_out_lock, 'Invalid username. Username must be between 5 and 20 characters and only contain letters and numbers.')
 
     def _list_accounts(self):
+        # Send list accounts query
         query = input('Enter query: ')
         message = self.protocol.encode(
             'LIST_ACCOUNTS', self.message_counter, {'query': query})
@@ -81,6 +84,7 @@ class Client:
         self.protocol.send(self.socket, message)
 
     def _send_message(self):
+        # Get recipient username and message and send
         user = input('Enter recipient username: ')
         user_msg = input('Enter message: ')
         message = self.protocol.encode(
@@ -113,7 +117,7 @@ class Client:
                             out_lock, "Account creation successful. You are now logged in.")
                     else:
                         atomic_print(out_lock, args['status'])
-                case 4:  # list accounts response
+                case 4:  # List accounts response
                     if args['status'] == "Success":
                         atomic_print(
                             out_lock, f"Account search results:\n{args['accounts']}")
@@ -129,13 +133,13 @@ class Client:
                             out_lock, "Deleting account successful; you are now logged out.")
                     else:
                         atomic_print(out_lock, args['status'])
-                case 10:  # LOGIN
+                case 10:  # Login response
                     if args['status'] == "Success":
                         self.username = args['username']
                         atomic_print(out_lock, "You are now logged in.")
                     else:
                         atomic_print(out_lock, args['status'])
-                case 12:  # LOGOFF
+                case 12:  # Logoff response
                     if args['status'] == "Success":
                         self.username = None
                         atomic_print(out_lock, "You are now logged out.")
@@ -144,7 +148,6 @@ class Client:
                 case 13:  # Receive message
                     atomic_print(
                         out_lock, f"Message from {args['sender']}: {args['message']} \n\n{self._get_prompt()}")
-                    # atomic_print(out_lock, self._get_prompt(), end=' ')
         return process_operation
 
 
