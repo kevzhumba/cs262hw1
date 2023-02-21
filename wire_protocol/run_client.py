@@ -12,7 +12,7 @@ if __name__ == '__main__':
         client_instance.run()
     except KeyboardInterrupt:
         client_instance.disconnect()
-        print('Disconnected from server')
-    except:
+        print('Disconnected from server.')
+    except Exception as e:
         client_instance.disconnect()
-        print('Disconnected from server. Error')
+        print('Disconnected from server. Please try again later.')
