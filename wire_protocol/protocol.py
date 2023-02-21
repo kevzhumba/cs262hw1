@@ -14,7 +14,8 @@ METADATA_SIZES = {
 }
 
 METADATA_LENGTH = sum(METADATA_SIZES.values())
-MAX_PAYLOAD_SIZE = 2048
+MAX_PACKET_SIZE = 2048
+MAX_PAYLOAD_SIZE = MAX_PACKET_SIZE - METADATA_LENGTH
 VERSION = 1
 
 
@@ -34,6 +35,7 @@ class OperationCode(Enum):
     RECV_MESSAGE = 13
 
 
+# Necessary arguments needed for each operation
 OPERATION_ARGS = {
     'CREATE_ACCOUNT': ['username'],
     'CREATE_ACCOUNT_RESPONSE': ['status', 'username'],
@@ -91,8 +93,6 @@ class Protocol:
             self.metadata_sizes['message_id']
 
     def encode(self, operation: str, message_id: int, operation_args={}) -> List[bytes]:
-        # TODO - debug flag
-        # print("Encoding message", operation, message_id, operation_args)
         # Check for necessary arguments
         if set(OPERATION_ARGS[operation]).intersection(set(operation_args.keys())) != set(OPERATION_ARGS[operation]):
             raise ValueError(
@@ -103,7 +103,7 @@ class Protocol:
             [f"{key}={value}" if key in OPERATION_ARGS[operation] else "" for key, value in operation_args.items()])
         data += '\n'
 
-        # Encode metadata and data into byte messages (multiple for large messages)
+        # Encode metadata and data into byte packets (may be multiple packets for large messages)
         return self._encode(OperationCode[operation].value, message_id, data)
 
     def _encode(self, operation: int, message_id: int, data: str) -> List[bytes]:
@@ -151,7 +151,7 @@ class Protocol:
         total_sent = 0
         while total_sent < len(msg):
             try:
-                bytes_sent = client_socket.send(msg, MAX_PAYLOAD_SIZE)
+                bytes_sent = client_socket.send(msg, MAX_PACKET_SIZE)
                 # TODO - debug flag
                 # print(f"Sent {bytes_sent} bytes")
                 # if (bytes_sent == 0):
@@ -198,7 +198,7 @@ class Protocol:
 
         Here packet refers to a single data transmission from the client which contains a header (metadata) and a payload.
         A singular message may be split into multiple packets, each packet only contains a portion of one message.
-        Each recv call may return multiple packets, and packets may be split up among multiple recv calls,
+        Each recv call may return bytes that make up multiple packets, and a single packet may be split up among multiple recv calls,
         so we need to keep track of the current message we are building and the leftover bytes from the last recv call.
 
         Args:
@@ -217,7 +217,7 @@ class Protocol:
 
         # Infinite loop to read packets
         while True:
-            received_data = client.recv(MAX_PAYLOAD_SIZE)
+            received_data = client.recv(MAX_PACKET_SIZE)
             if (int.from_bytes(received_data, 'big') <= 0):
                 # Socket disconnected
                 return
