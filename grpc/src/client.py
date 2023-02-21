@@ -45,7 +45,7 @@ class Client:
     def run(self):
         # Start listening for messages in a new thread
         self.listen_thread = threading.Thread(
-            target=self.listen_for_messages)
+            target=self.listen_for_messages, daemon=True)
         self.listen_thread.start()
 
         while True:
@@ -144,15 +144,3 @@ class Client:
                 std_out_lock, "Deleting account successful; you are now logged out.")
         else:
             atomic_print(std_out_lock, response.status)
-
-
-if __name__ == '__main__':
-    host = input('Enter host: ')
-    port = int(input('Enter port: '))
-
-    with grpc.insecure_channel(f'{host}:{port}') as channel:
-        stub = chat_service_pb2_grpc.ChatServiceStub(channel)
-        client = Client(stub)
-        print('Connected to server')
-
-        client.run()

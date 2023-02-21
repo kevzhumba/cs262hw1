@@ -1,16 +1,9 @@
-
-from concurrent import futures
-from time import sleep
 import threading
 import re
 from collections import defaultdict
 
-import grpc
 import chat_service_pb2
 import chat_service_pb2_grpc
-
-HOST = '127.0.0.1'
-PORT = 6000
 
 
 class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
@@ -185,17 +178,3 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             status = 'Error: Need to be logged in to log out of your account.'
 
         return chat_service_pb2.LogOffResponse(status=status)
-
-
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    chat_service_pb2_grpc.add_ChatServiceServicer_to_server(
-        ChatServiceServicer(), server)
-    server.add_insecure_port(f'{HOST}:{PORT}')
-    server.start()
-    print(f"Server started on {HOST}:{PORT}")
-    server.wait_for_termination()
-
-
-if __name__ == '__main__':
-    serve()
