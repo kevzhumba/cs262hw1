@@ -3,7 +3,7 @@ from concurrent import futures
 
 import grpc
 import chat_service_pb2_grpc
-from chat_service_pb2_grpc import ChatServiceServicer
+from server import ChatServiceServicer
 
 HOST = '[::]'
 PORT = 6000
