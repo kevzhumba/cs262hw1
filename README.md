@@ -75,7 +75,7 @@ To run the client, first ensure that the machine that will be running the server
 ```sh
 python3 grpc/src/run_client.py
 ```
-You will then be asked to input a hostname and port; the hostname can be found by following the above instructions on the server machine, and the port is 6000. If the connection is successful, you will see ```Connected to Server```. If not, check that the host and port are correct. 
+You will then be asked to input a hostname and port; the hostname can be found by following the above instructions on the server machine, and the port is 6000. You will see ```Connected to Server``` indicating that the client is running, but the connection will be evaluated only once you perform an action. If an action fails, check that the host and port are correct. 
 
 ## Sending Messages
 The client will prompt for a command. Typing ```help``` will provide the user with various operations.
