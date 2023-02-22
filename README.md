@@ -48,6 +48,7 @@ The client will prompt for a command. Typing ```help``` will provide the user wi
 - 4: Send message 
 - 5: Logoff 
 - 6: Delete account
+
 Typing the number of a command will prompt the user for more information to fulfill the operation's request. 
 
 ## Client Error Messages
