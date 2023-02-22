@@ -9,7 +9,7 @@ This is a simple chat messaging service. It supports multiple clients connecting
 - Logging out of an existing account
 - Deleting an account
 
-This functionality is implemented using both our own wire protocol, as well as using GRPC. The respective clients and servers can be found in the respective folders.
+This functionality is implemented using both our own wire protocol, as well as using gRPC. The respective clients and servers can be found in the respective folders.
 
 ## Prerequisites
 - MacOS
