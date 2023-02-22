@@ -16,6 +16,9 @@ class Client:
         self.username = None
 
     def connect(self):
+        """
+        Starts a socket and starts a thread to connect to the client and receive messages
+        """
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.server_host, self.port))
@@ -31,6 +34,9 @@ class Client:
         self.socket.close()
 
     def listen_to_server(self):
+        """
+        Listens to the server and processes the received messages
+        """
         self.protocol.read_packets(
             self.socket, self.process_operation_curry(std_out_lock))
 
@@ -39,6 +45,10 @@ class Client:
         return f"{command_line_prefix} Enter command (type 'help' for list of commands): "
 
     def run(self):
+        """
+        Handles the user's inputs to the command line, and for each possible command
+        sends out a request to the server.
+        """
         # Core user interface loop
         while True:
             user_input = input(self._get_prompt())
@@ -64,6 +74,12 @@ class Client:
             sleep(0.2)
 
     def _login_or_create_account(self, action: Literal['LOG_IN', 'CREATE_ACCOUNT']):
+        """
+        Handles sending a login or create account request to the server
+
+        Args:
+        action (Literal): the requested action to carry out
+        """
         username = input('Enter username: ')
         # Check valid username, only letters and numbers
         if username.strip().isalnum() and 5 <= len(username) <= 20:
@@ -76,6 +92,9 @@ class Client:
                 std_out_lock, 'Invalid username. Username must be between 5 and 20 characters and only contain letters and numbers.')
 
     def _list_accounts(self):
+        """
+        Handles sending a list account request to the server
+        """
         # Send list accounts query
         query = input('Enter query: ')
         message = self.protocol.encode(
@@ -84,6 +103,9 @@ class Client:
         self.protocol.send(self.socket, message)
 
     def _send_message(self):
+        """
+        Handles sending a send message request to the server
+        """
         # Get recipient username and message and send
         user = input('Enter recipient username: ')
         user_msg = input('Enter message: ')
@@ -93,19 +115,42 @@ class Client:
         self.protocol.send(self.socket, message)
 
     def _logoff(self):
+        """
+        Handles sending a log off request to the server
+        """
         message = self.protocol.encode(
             'LOG_OFF', self.message_counter)
         self.message_counter += 1
         self.protocol.send(self.socket, message)
 
     def _delete_account(self):
+        """
+        Handles sending a delete account request to the server
+        """
         message = self.protocol.encode(
             'DELETE_ACCOUNT', self.message_counter)
         self.message_counter += 1
         self.protocol.send(self.socket, message)
 
     def process_operation_curry(self, out_lock):
+        """Processes the operation. This is a curried function to work with the 
+        read packets api provided in protocol. See the relevant process functions
+        for functionality.
+
+        Args:
+            out_lock (threading.Lock): lock to control accesses to stdou
+        """
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
+            """Processes the operation. When the response is an error, we print the
+            error message. When we are receiving the message, we print out the sender 
+            and the message.
+
+            Args:
+                client (socket.socket): The client socket; not used for this function
+                metadata (protocol.Metadata): The metadata parsed from the message
+                msg (str): message to parse for operation arguments
+                id_accum (it): integer accumulator for message 
+            """
             operation_code = metadata.operation_code.value
             args = self.protocol.parse_data(operation_code, msg)
             atomic_print(out_lock, '')
@@ -152,6 +197,14 @@ class Client:
 
 
 def atomic_print(lock, msg, end=None):
+    """
+    Atomically prints the msg and the optional end string
+
+    Args:
+        lock (threading.Lock): lock to lock stdout
+        msg (str): message to print
+        end (str): optional end string to print
+    """
     lock.acquire()
     print(msg, end=end)
     lock.release()

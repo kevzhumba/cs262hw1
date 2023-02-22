@@ -285,7 +285,6 @@ class Protocol:
                     # Invariant here is that we at least have the metadata available
                     packet_metadata = self.parse_metadata(curr_msg_to_parse)
                     if packet_metadata.version != VERSION:
-                        # TODO throw response error, also maybe make sure that no packets of the same message id are processed
                         return None
                     else:
                         # Read current packet's payload and add it to the running message
