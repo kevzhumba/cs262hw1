@@ -61,6 +61,22 @@ python3 wire_protocol/run_client.py
 ```
 You will then be asked to input a hostname and port; the hostname can be found by following the above instructions on the server machine, and the port is 6000. If the connection is successful, you will see ```Connected to Server```. If not, check that the host and port are correct. 
 
+
+## Setting up the gRPC Server
+To run the server, first ensure that the machine that will be running the server has turned off their firewall. Then, from the project root, run 
+```sh
+python3 grpc/src/run_server.py
+```
+If ```Server started``` is printed, then the server is ready to accept connections. To find the IP address which the server is being hosted at, go to 
+```System Preferences -> Network -> Advanced -> TCP/IP```. The IP address the server is being hosted at should be listed there. The port for the server is 6000.
+
+## Setting up the gRPC Client
+To run the client, first ensure that the machine that will be running the server has turned off their firewall. Then, from the project root, run 
+```sh
+python3 grpc/src/run_client.py
+```
+You will then be asked to input a hostname and port; the hostname can be found by following the above instructions on the server machine, and the port is 6000. If the connection is successful, you will see ```Connected to Server```. If not, check that the host and port are correct. 
+
 ## Sending Messages
 The client will prompt for a command. Typing ```help``` will provide the user with various operations.
 - 1: Create account 
