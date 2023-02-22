@@ -8,22 +8,43 @@ This is a simple chat messaging service. It supports multiple clients connecting
 - Sending a message to another user
 - Logging out of an existing account
 - Deleting an account
+
 This functionality is implemented using both our own wire protocol, as well as using GRPC. The respective clients and servers can be found in the respective folders.
 
 ## Prerequisites
 - MacOS
 - Python 3.10
-  - To upgrade using brew
+  - To install/upgrade using brew
     ```sh
     brew install python
     ```
-  - To upgrade using conda (creates new environment)
+  - To install/upgrade using conda (creates new environment)
+    ```sh
+    conda create -n py310 python=3.10 anaconda
     ```
-    conda create -n py39 python=3.9 anaconda
-    ```
+    
 - gRPCio
-  
+  - To install using pip
+    ```sh
+    pip install grpcio
+    ```
+  - To install using conda
+    ```sh
+    conda install -c conda-forge grpcio
+    ```
+  - For troubleshooting, please see [here](https://github.com/grpc/grpc)
+  -
 - google-api-python-client
+  - To install using pip
+    ```sh
+    pip install google-api-python-client
+    ```
+  - To install using conda
+    ```sh
+    conda install -c conda-forge google-api-python-client
+    ```
+  - For troubleshooting, please see [here](https://github.com/googleapis/google-api-python-client)
+
 
 ## Setting up the Custom Wire Protocol Server
 To run the server, first ensure that the machine that will be running the server has turned off their firewall. Then, from the project root, run 
@@ -49,7 +70,7 @@ The client will prompt for a command. Typing ```help``` will provide the user wi
 - 5: Logoff 
 - 6: Delete account
 
-Typing the number of a command will prompt the user for more information to fulfill the operation's request. 
+To start a remote procedure call, when prompted for a command, enter the number corresponding to the operation you would like to call. You will then be prompted for more information based on the operation requested.
 
 ## Client Error Messages
 As you're sending messages, you might come across various errors. Each operation has several errors it can throw:
@@ -71,6 +92,6 @@ As you're sending messages, you might come across various errors. Each operation
   - If the user is not logged in, the server will respond with an error
 
 ## Stopping the Client/Server
-To stop the client or server, simply press ```ctrl-C``` to exit the client or server.
+To stop the client or server, simply press ```ctrl-C``` to exit the client or server. 
 
 
