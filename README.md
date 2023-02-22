@@ -110,4 +110,8 @@ As you're sending messages, you might come across various errors. Each operation
 ## Stopping the Client/Server
 To stop the client or server, simply press ```ctrl-C``` to exit the client or server. 
 
+<br>
 
+# Observation Notebook
+
+Our design notebook can be found [here.](https://docs.google.com/document/d/15CyFpaxay_N3F3A61CjtC8cH6-_OazAiEMFcwTseMVU/edit?usp=sharing)
