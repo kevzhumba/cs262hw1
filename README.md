@@ -52,7 +52,7 @@ To run the server, first ensure that the machine that will be running the server
 python3 wire_protocol/run_server.py
 ```
 If ```Server started``` is printed, then the server is ready to accept connections. To find the IP address which the server is being hosted at, go to 
-```System Preferences -> Network -> Advanced -> TCP/IP```. The IP address the server is being hosted at should be listed there. The port for the server is 6000.
+```System Preferences -> Network -> Advanced -> TCP/IP```. The IP address the server is being hosted at should be listed as the IPv4 Address. The port for the server is 6000.
 
 ## Setting up the Custom Wire Protocol Client
 To run the client, first ensure that the machine that will be running the server has turned off their firewall. Then, from the project root, run 
@@ -68,7 +68,7 @@ To run the server, first ensure that the machine that will be running the server
 python3 grpc/src/run_server.py
 ```
 If ```Server started``` is printed, then the server is ready to accept connections. To find the IP address which the server is being hosted at, go to 
-```System Preferences -> Network -> Advanced -> TCP/IP```. The IP address the server is being hosted at should be listed there. The port for the server is 6000.
+```System Preferences -> Network -> Advanced -> TCP/IP```. The IP address the server is being hosted at should be listed as the IPv4 Address. The port for the server is 6000.
 
 ## Setting up the gRPC Client
 To run the client, first ensure that the machine that will be running the server has turned off their firewall. Then, from the project root, run 
