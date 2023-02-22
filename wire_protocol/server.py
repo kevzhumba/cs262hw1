@@ -1,8 +1,10 @@
 import socket
 from time import sleep
+import time
 import protocol
 import threading
 import re
+import logging
 
 
 class Server:
@@ -120,6 +122,7 @@ class Server:
         Args:
             account_name (str): The args object for creating an account parsed from the received message
         """
+        logging.info('Received', time.time())
         try:
             pattern = re.compile(
                 fr"{args['query']}", flags=re.IGNORECASE)

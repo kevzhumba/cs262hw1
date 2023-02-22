@@ -13,5 +13,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         server.disconnect()
         print('Server dropped')
-        
-

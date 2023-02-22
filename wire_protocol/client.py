@@ -1,8 +1,10 @@
 import socket
 from time import sleep
+import time
 import protocol
 import threading
 from typing import Literal
+import logging
 
 std_out_lock = threading.Lock()
 
@@ -98,6 +100,7 @@ class Client:
         """
         # Send list accounts query
         query = input('Enter query: ')
+        logging.info('Start time', time.time())
         message = self.protocol.encode(
             'LIST_ACCOUNTS', self.message_counter, {'query': query})
         self.message_counter += 1
@@ -134,7 +137,7 @@ class Client:
         self.protocol.send(self.socket, message)
 
     def process_operation_curry(self, out_lock):
-        """Processes the operation. This is a curried function to work with the 
+        """Processes the operation. This is a curried function to work with the
         read packets api provided in protocol. See the relevant process functions
         for functionality.
 
@@ -143,14 +146,14 @@ class Client:
         """
         def process_operation(client_socket, metadata: protocol.Metadata, msg, id_accum):
             """Processes the operation. When the response is an error, we print the
-            error message. When we are receiving the message, we print out the sender 
+            error message. When we are receiving the message, we print out the sender
             and the message.
 
             Args:
                 client (socket.socket): The client socket; not used for this function
                 metadata (protocol.Metadata): The metadata parsed from the message
                 msg (str): message to parse for operation arguments
-                id_accum (it): integer accumulator for message 
+                id_accum (it): integer accumulator for message
             """
             operation_code = metadata.operation_code.value
             args = self.protocol.parse_data(operation_code, msg)
@@ -164,6 +167,7 @@ class Client:
                     else:
                         atomic_print(out_lock, args['status'])
                 case 4:  # List accounts response
+                    logging.info('End time', time.time())
                     if args['status'] == "Success":
                         accounts = args['accounts'].split(';')
                         accounts_str = '\n'.join(accounts)

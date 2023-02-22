@@ -3,6 +3,7 @@ import errno
 import select
 import socket
 from typing import Callable, Dict, List
+import logging
 
 METADATA_SIZES = {
     "version": 1,
@@ -158,6 +159,8 @@ class Protocol:
             payload_bytes.extend(payload)
             encoded_payloads.append(payload_bytes)
 
+        logging.info(
+            f"Packet sizes: {sum([len(payload) for payload in encoded_payloads])}")
         return encoded_payloads
 
     def _encode_component(self, component: str, value: int) -> bytes:
