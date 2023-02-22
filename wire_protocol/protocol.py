@@ -16,7 +16,7 @@ METADATA_SIZES = {
 METADATA_LENGTH = sum(METADATA_SIZES.values())
 MAX_PACKET_SIZE = 2048
 MAX_PAYLOAD_SIZE = MAX_PACKET_SIZE - METADATA_LENGTH
-VERSION = 3
+VERSION = 1
 
 
 class OperationCode(Enum):
@@ -301,15 +301,16 @@ class Protocol:
                                                                 curr_payload_size + METADATA_LENGTH]
                             incomplete_msg = packet_to_parse.decode(
                                 'ascii')
-
                             # Check if this is a continuation of the current running message
+
                             if (curr_msg_id == packet_metadata.message_id and curr_op == packet_metadata.operation_code):
+
                                 running_msg += incomplete_msg
                             else:
                                 # Else this is a new message
                                 running_msg = incomplete_msg
                                 curr_msg_id = packet_metadata.message_id
-
+                                curr_op = packet_metadata.operation_code
                             # If running msg is done, then do something based on metadata
                             if (running_msg[-1] == '\n'):
                                 message_processor(client, packet_metadata, running_msg[:-1],

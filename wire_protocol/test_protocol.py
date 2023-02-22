@@ -57,6 +57,41 @@ class ProtocolTest(unittest.TestCase):
             'ascii')
         processFn.assert_called_with(
             client, unittest.mock.ANY, incomplete_msg[:-1], 0)
+        
+    def test_read_packets_multi_msg(self):
+        encoding1 = self.protocol.encode(
+            'CREATE_ACCOUNT', 0, {'username': 'kevin'})[0]
+        encoding2 = self.protocol.encode(
+            'CREATE_ACCOUNT', 1, {'username': 'joseph'})[0]
+        client = MagicMock()
+        processFn = MagicMock(return_value=True)
+        md = self.protocol.parse_metadata(encoding2)
+        m = MagicMock()
+        zero = 0
+        m.side_effect = [encoding1 + encoding2, zero.to_bytes(2, 'big')]
+        client.recv = m
+        self.protocol.read_packets(client, processFn)
+        curr_payload_size = md.payload_size
+        packet_to_parse = encoding2[METADATA_LENGTH:
+                                   curr_payload_size + METADATA_LENGTH]
+        incomplete_msg = packet_to_parse.decode(
+            'ascii')
+        processFn.assert_called_with(
+            client, unittest.mock.ANY, incomplete_msg[:-1], 1)
+    
+    def test_read_packets_single_msg_multiple_recv(self):
+        encoding1 = self.protocol.encode(
+            'CREATE_ACCOUNT', 0, {'username': 'kevin' * 2048})
+        client = MagicMock()
+        processFn = MagicMock(return_value=True)
+        m = MagicMock()
+        zero = 0
+        m.side_effect = encoding1 + [zero.to_bytes(2, 'big')]
+        client.recv = m
+        self.protocol.read_packets(client, processFn)
+
+        processFn.assert_called_with(
+            client, unittest.mock.ANY, 'username=' + 'kevin'*2048, 0)
 
     def test_parse_data(self):
         data = 'recipient=kevin\rmessage=hello'
