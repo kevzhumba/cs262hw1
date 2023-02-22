@@ -1,5 +1,7 @@
+import time
 import grpc
 import threading
+import logging
 from typing import Literal
 from time import sleep
 import chat_service_pb2
@@ -48,7 +50,7 @@ class Client:
 
     def run(self):
         """
-        Run the core user interface loop. 
+        Run the core user interface loop.
         This starts a new thread for fetching messages from the server and then enters a loop for user input.
         """
         # Start listening for messages in a new thread
@@ -99,7 +101,7 @@ class Client:
 
     def _create_account_or_log_in(self, action: Literal['CREATE_ACCOUNT', 'LOG_IN']):
         """
-        Ask for username to create an account or log in. 
+        Ask for username to create an account or log in.
         Check basic validity of username and send appropriate request to server.
         """
         username = input('Enter username: ')
@@ -124,8 +126,11 @@ class Client:
     def _list_accounts(self):
         """Ask for a query string and send a request to the server to list accounts matching the query."""
         query = input('Enter query: ')
+        start = time.time()
         response = self.stub.ListAccounts(
             chat_service_pb2.ListAccountsRequest(query=query))
+        logging.info(
+            f"Start: {start}, Time to complete call: {time.time() - start}")
         if response.status == "Success":
             accounts = '\n'.join(response.accounts)
             atomic_print(std_out_lock, f"Account search results:\n{accounts}")

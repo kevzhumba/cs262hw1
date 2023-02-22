@@ -1,6 +1,8 @@
 import threading
 import re
 from collections import defaultdict
+import time
+import logging
 
 import chat_service_pb2_grpc
 from chat_service_pb2 import (
@@ -73,10 +75,14 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
                 print("Account created: ", username)
 
                 status = 'Success'
-        return CreateAccountResponse(status=status, username=username)
+        response = CreateAccountResponse(status=status, username=username)
+        logging.info(
+            f"CreateAccount request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
 
     def ListAccounts(self, request: ListAccountsRequest, context):
         """Process request to list accounts according to some regex pattern."""
+        logging.info(f"Time received: {time.time()}")
         try:
             pattern = re.compile(
                 fr"{request.query}", flags=re.IGNORECASE)
@@ -91,7 +97,10 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             status = 'Error: regex is malformed.'
             accounts = []
 
-        return ListAccountsResponse(status=status, accounts=accounts)
+        response = ListAccountsResponse(status=status, accounts=accounts)
+        logging.info(
+            f"ListAccount request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
 
     def SendMessage(self, request: SendMessageRequest, context):
         """Process send message request by queueing it in the undelivered_msg list."""
@@ -123,7 +132,10 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
                 status = 'Success'
                 print(f"Queued message from {username} to {recipient}")
 
-        return SendMessageResponse(status=status)
+        response = SendMessageResponse(status=status)
+        logging.info(
+            f"SendMessage request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
 
     def GetMessages(self, request: GetMessagesRequest, context):
         """
@@ -169,7 +181,10 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.logged_in_lock.release()
             status = 'Error: Need to be logged in to delete your account.'
 
-        return DeleteAccountResponse(status=status)
+        response = DeleteAccountResponse(status=status)
+        logging.info(
+            f"DeleteAccount request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
 
     def LogIn(self, request: LogInRequest, context):
         """Process log in request."""
@@ -192,7 +207,10 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
                 status = 'Success'
                 print("Logged in: ", username)
 
-        return LogInResponse(status=status, username=username)
+        response = LogInResponse(status=status, username=username)
+        logging.info(
+            f"LogIn request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
 
     def LogOff(self, request: LogOffRequest, context):
         """Log off the account of the logged in user."""
@@ -209,4 +227,7 @@ class ChatServiceServicer(chat_service_pb2_grpc.ChatServiceServicer):
             self.logged_in_lock.release()
             status = 'Error: Need to be logged in to log out of your account.'
 
-        return LogOffResponse(status=status)
+        response = LogOffResponse(status=status)
+        logging.info(
+            f"LogOff request size: {request.ByteSize()}, response size: {response.ByteSize()}")
+        return response
