@@ -219,10 +219,11 @@ class Protocol:
                     return False
                 # Wait for client_socket until ready for writing
                 select.select([], [client_socket], [])
-        return True
 
         if socket_lock is not None:
             socket_lock.release()
+
+        return True
 
     def parse_data(self, op: int, data: str) -> Dict[str, str]:
         """Parses the data string into a dictionary of keyword arguments for the given operation.
