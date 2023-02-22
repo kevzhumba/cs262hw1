@@ -24,7 +24,8 @@ class Client:
             self.socket.connect((self.server_host, self.port))
 
             # Create a thread to listen continuously listen to server and respond to server messages
-            thread = threading.Thread(target=self.listen_to_server, daemon=True)
+            thread = threading.Thread(
+                target=self.listen_to_server, daemon=True)
             thread.start()
             print('Connected to server')
         except:
@@ -164,8 +165,10 @@ class Client:
                         atomic_print(out_lock, args['status'])
                 case 4:  # List accounts response
                     if args['status'] == "Success":
+                        accounts = args['accounts'].split(';')
+                        accounts_str = '\n'.join(accounts)
                         atomic_print(
-                            out_lock, f"Account search results:\n{args['accounts']}")
+                            out_lock, f"Account search results:\n{accounts_str}")
                     else:
                         atomic_print(out_lock, args['status'])
                 case 6:  # Send message response

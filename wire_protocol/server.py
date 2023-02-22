@@ -29,7 +29,7 @@ class Server:
 
     def handle_client(self, client, socket_lock):
         """Function to handle a client on a single thread, which continuously reads the socket and processes the messages
-        
+
         Args:
             client (socket.socket): The socket to read from.
             socket_lock (threading.Lock): Lock to prevent concurrent socket read
@@ -48,7 +48,7 @@ class Server:
 
     def atomicIsLoggedIn(self, client_socket, socket_lock):
         """Atomically checks if the client is logged in 
-        
+
         Args:
             client (socket.socket): The client socket
             socket_lock (threading.Lock): The socket's associated lock
@@ -62,7 +62,7 @@ class Server:
 
     def atomicLogIn(self, client_socket, socket_lock, account_name):
         """Atomically logs client in with the account name
-        
+
         Args:
             client (socket.socket): The client socket
             socket_lock (threading.Lock): The socket's associated lock
@@ -75,7 +75,7 @@ class Server:
 
     def atomicIsAccountCreated(self, recipient):
         """Atomically checks if an account is created
-        
+
         Args:
             recipient (str): The account name to check
         """
@@ -116,7 +116,7 @@ class Server:
 
     def process_list_accounts(self, args):
         """Processes a list account request. We don't require the requester to be logged in.
-        
+
         Args:
             account_name (str): The args object for creating an account parsed from the received message
         """
@@ -129,7 +129,7 @@ class Server:
                 if pattern.match(account):
                     result.append(account)
             self.account_list_lock.release()
-            response = {'status': 'Success', 'accounts': "\n".join(result)}
+            response = {'status': 'Success', 'accounts': ";".join(result)}
         except:
             response = {'status': 'Error: regex is malformed.', 'accounts': ''}
         finally:
@@ -250,7 +250,7 @@ class Server:
             response = {
                 'status': 'Error: Need to be logged in to log out of your account.'}
         return response
-    
+
     def process_operation_curried(self, socket_lock):
         """Processes the operation. This is a curried function to work with the 
         read packets api provided in protocol. See the relevant process functions
